@@ -65,29 +65,26 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
     platform: "twitter" | "facebook" | "linkedin";
   }
 
-  const shareViaSocial = ({ platform }: ShareViaSocialProps) => {
-    let url: string;
-    const text = `Check out this collection: ${collectionName}`;
-
-    // For social sharing, we'll just share the collection link
+  const shareViaSocial = ({ platform }: ShareViaSocialProps) =>
     switch (platform) {
       case "twitter":
-        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareableLink)}`;
-        break;
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareableLink)}`
+        break
       case "facebook":
-        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableLink)}`;
-        break;
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableLink)}`
+        break
       case "linkedin":
-        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareableLink)}`;
-        break;
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareableLink)}`
+        break
       default:
-        return;
+        return
     }
 
-    window.open(url, "_blank", "width=600,height=400");
+    window.open(url, "_blank", "width=600,height=400")
 
-    toast(`Opening ${platform} to share your collection.`);
-  };
+    toast(`Opening ${platform} to share your collection.`,
+    )
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -164,7 +161,7 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={(checked) => setIncludeMetadata(checked === true)} />
+                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={setIncludeMetadata} />
                 <Label htmlFor="include-metadata">Include tags and descriptions</Label>
               </div>
             </div>
@@ -219,7 +216,7 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial({ platform: "twitter" })}
+                onClick={() => shareViaSocial("twitter")}
               >
                 <Twitter className="h-8 w-8" />
                 <span>Twitter</span>
@@ -228,7 +225,7 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial({ platform: "facebook" })}
+                onClick={() => shareViaSocial("facebook")}
               >
                 <Facebook className="h-8 w-8" />
                 <span>Facebook</span>
@@ -237,7 +234,7 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial({ platform: "linkedin" })}
+                onClick={() => shareViaSocial("linkedin")}
               >
                 <Linkedin className="h-8 w-8" />
                 <span>LinkedIn</span>
