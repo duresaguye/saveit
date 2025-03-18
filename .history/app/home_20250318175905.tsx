@@ -25,27 +25,27 @@ import { Checkbox } from "@/components/ui/checkbox"
 import MultiFolderShareModal from "@/components/multi-link-share-modal"
 
 export default function Home() {
-  const [links, setLinks] = useState<{ id: string; title: string; url: string; tags: string[]; category: string; dateAdded: string }[]>([])
-  const [folders, setFolders] = useState<{ id: string; name: string; links: string[]; dateCreated: string }[]>([])
+  const [links, setLinks] = useState([])
+  const [folders, setFolders] = useState([])
   const [view, setView] = useState("graph") // graph, kanban, mindmap
   const [activeTab, setActiveTab] = useState("links") // links, folders
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedLinks, setSelectedLinks] = useState<string[]>([])
+  const [selectedLinks, setSelectedLinks] = useState([])
   const [isMultiSelectMode, setIsMultiSelectMode] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isFolderShareModalOpen, setIsFolderShareModalOpen] = useState(false)
-  const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
+  const [editingFolder, setEditingFolder] = useState(null)
   const [pendingLinkForFolder, setPendingLinkForFolder] = useState(null)
-  const [selectedFolderForShare, setSelectedFolderForShare] = useState<Folder | null>(null)
+  const [selectedFolderForShare, setSelectedFolderForShare] = useState(null)
 
   const isMobile = useMobile()
   const router = useRouter()
 
   // Add a new state for multi-select folders mode
   const [isMultiSelectFoldersMode, setIsMultiSelectFoldersMode] = useState(false)
-  const [selectedFolders, setSelectedFolders] = useState<string[]>([])
+  const [selectedFolders, setSelectedFolders] = useState([])
 
   // Add state for multi-folder share modal
   const [isMultiFolderShareModalOpen, setIsMultiFolderShareModalOpen] = useState(false)
@@ -129,98 +129,72 @@ export default function Home() {
 
   // Register keyboard shortcuts
   useEffect(() => {
-    interface KeyboardEventWithMeta extends KeyboardEvent {
-      metaKey: boolean;
-    }
-
-    const handleKeyDown = (e: KeyboardEventWithMeta) => {
+    const handleKeyDown = (e) => {
       // Ctrl/Cmd + K to open search
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-      e.preventDefault();
-      document.getElementById("search-input")?.focus();
+        e.preventDefault()
+        document.getElementById("search-input")?.focus()
       }
 
       // Ctrl/Cmd + N to add new link
       if ((e.ctrlKey || e.metaKey) && e.key === "n") {
-      e.preventDefault();
-      setIsAddModalOpen(true);
+        e.preventDefault()
+        setIsAddModalOpen(true)
       }
 
       // Ctrl/Cmd + F to add new folder
       if ((e.ctrlKey || e.metaKey) && e.key === "f") {
-      e.preventDefault();
-      setIsFolderModalOpen(true);
+        e.preventDefault()
+        setIsFolderModalOpen(true)
       }
 
       // Escape to exit multi-select mode
       if (e.key === "Escape" && isMultiSelectMode) {
-      e.preventDefault();
-      setIsMultiSelectMode(false);
-      setSelectedLinks([]);
+        e.preventDefault()
+        setIsMultiSelectMode(false)
+        setSelectedLinks([])
       }
-    };
+    }
 
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [isMultiSelectMode])
 
-  interface Link {
-    id: string;
-    title: string;
-    url: string;
-    tags: string[];
-    category: string;
-    dateAdded: string;
-  }
-
-  interface Folder {
-    id: string;
-    name: string;
-    links: string[];
-    dateCreated: string;
-  }
-
-  const addLink = (newLink: Omit<Link, 'id' | 'dateAdded'>) => {
-    const linkWithId: Link = {
+  const addLink = (newLink) => {
+    const linkWithId = {
       ...newLink,
       id: Date.now().toString(),
       dateAdded: new Date().toISOString(),
     }
     setLinks([...links, linkWithId])
-    toast(`${newLink.title} has been added to your collection.`)
+    toast( `${newLink.title} has been added to your collection.`,
+    )
   }
 
-  interface DeleteLink {
-    (id: string): void;
-  }
-
-  const deleteLink: DeleteLink = (id) => {
+  const deleteLink = (id) => {
     // Remove link from all folders
     const updatedFolders = folders.map((folder) => ({
       ...folder,
       links: folder.links.filter((linkId) => linkId !== id),
-    }));
+    }))
 
-    setFolders(updatedFolders);
-    setLinks(links.filter((link) => link.id !== id));
-    setSelectedLinks(selectedLinks.filter((linkId) => linkId !== id));
+    setFolders(updatedFolders)
+    setLinks(links.filter((link) => link.id !== id))
+    setSelectedLinks(selectedLinks.filter((linkId) => linkId !== id))
 
-    toast("The link has been removed from your collection.");
-  };
-
-  interface ToggleLinkSelection {
-    (linkId: string): void;
+    toast( "The link has been removed from your collection.",
+    )
   }
 
-  const toggleLinkSelection: ToggleLinkSelection = (linkId) => {
+  const toggleLinkSelection = (linkId) => {
     setSelectedLinks((prev) => {
       if (prev.includes(linkId)) {
-        return prev.filter((id) => id !== linkId);
+        return prev.filter((id) => id !== linkId)
       } else {
-        return [...prev, linkId];
+        return [...prev, linkId]
       }
-    });
-  };
+    })
+  }
 
   const handleShareSelected = () => {
     if (selectedLinks.length === 0) {
@@ -245,104 +219,78 @@ export default function Home() {
     setIsFolderModalOpen(true)
   }
 
-  interface FolderData {
-    id: string;
-    name: string;
-    links: string[];
-    dateCreated: string;
-  }
-
-  interface HandleSaveFolder {
-    (folderData: FolderData, addLinksAfter: boolean): void;
-  }
-
-  const handleSaveFolder: HandleSaveFolder = (folderData, addLinksAfter) => {
-    let newFolder: FolderData;
+  const handleSaveFolder = (folderData, addLinksAfter) => {
+    let newFolder
 
     if (editingFolder) {
       // Update existing folder
-      setFolders(folders.map((folder) => (folder.id === folderData.id ? folderData : folder)));
-      newFolder = folderData;
+      setFolders(folders.map((folder) => (folder.id === folderData.id ? folderData : folder)))
+      newFolder = folderData
 
-      toast(`"${folderData.name}" has been updated.`);
+      toast( `"${folderData.name}" has been updated.`,
+      )
     } else {
       // Add new folder
       newFolder = {
         ...folderData,
         links: pendingLinkForFolder ? [pendingLinkForFolder] : [],
-      };
+      }
 
-      setFolders([...folders, newFolder]);
+      setFolders([...folders, newFolder])
 
-      toast(`"${folderData.name}" has been created.`);
+      toast( `"${folderData.name}" has been created.`,
+      )
     }
 
-    setEditingFolder(null);
-    setPendingLinkForFolder(null);
+    setEditingFolder(null)
+    setPendingLinkForFolder(null)
 
     // If addLinksAfter is true, navigate to the folder page
     if (addLinksAfter) {
       setTimeout(() => {
-        router.push(`/folders/${newFolder.id}`);
-      }, 300);
+        router.push(`/folders/${newFolder.id}`)
+      }, 300)
     }
-  };
-
-  interface HandleEditFolder {
-    (folder: Folder): void;
   }
 
-  const handleEditFolder: HandleEditFolder = (folder) => {
+  const handleEditFolder = (folder) => {
     setEditingFolder(folder)
     setIsFolderModalOpen(true)
   }
 
-  interface HandleDeleteFolder {
-    (folderId: string): void;
+  const handleDeleteFolder = (folderId) => {
+    setFolders(folders.filter((folder) => folder.id !== folderId))
+
+    toast({
+      title: "Folder deleted",
+      description: "The folder has been removed.",
+    })
   }
 
-  const handleDeleteFolder: HandleDeleteFolder = (folderId) => {
-    setFolders(folders.filter((folder) => folder.id !== folderId));
-
-    toast("The folder has been removed.");
-  };
-
-  interface Folder {
-    id: string;
-    name: string;
-    links: string[];
-    dateCreated: string;
-  }
-
-  interface HandleShareFolder {
-    (folder: Folder): void;
-  }
-
-  const handleShareFolder: HandleShareFolder = (folder) => {
+  const handleShareFolder = (folder) => {
     setSelectedFolderForShare(folder)
     setIsFolderShareModalOpen(true)
   }
 
   // Add a function to toggle folder selection
-  interface ToggleFolderSelection {
-    (folderId: string): void;
-  }
-
-  const toggleFolderSelection: ToggleFolderSelection = (folderId) => {
+  const toggleFolderSelection = (folderId) => {
     setSelectedFolders((prev) => {
       if (prev.includes(folderId)) {
-        return prev.filter((id) => id !== folderId);
+        return prev.filter((id) => id !== folderId)
       } else {
-        return [...prev, folderId];
+        return [...prev, folderId]
       }
-    });
-  };
+    })
+  }
 
   // Add a function to handle sharing selected folders
   const handleShareSelectedFolders = () => {
     if (selectedFolders.length === 0) {
-      toast("Please select at least one folder to share.",
-       )
+      toast({
+        title: "No folders selected",
+        description: "Please select at least one folder to share.",
+        variant: "destructive",
+      })
       return
     }
 
@@ -664,17 +612,14 @@ export default function Home() {
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
           links={selectedLinkObjects}
-          folders={folders}
         />
 
-        {selectedFolderForShare && (
-          <FolderShareModal
-            isOpen={isFolderShareModalOpen}
-            onClose={() => setIsFolderShareModalOpen(false)}
-            folder={selectedFolderForShare}
-            links={links}
-          />
-        )}
+        <FolderShareModal
+          isOpen={isFolderShareModalOpen}
+          onClose={() => setIsFolderShareModalOpen(false)}
+          folder={selectedFolderForShare}
+          links={links}
+        />
 
         <MultiFolderShareModal
           isOpen={isMultiFolderShareModalOpen}
