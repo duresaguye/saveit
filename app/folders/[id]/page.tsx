@@ -269,7 +269,7 @@ export default function FolderDetailPage() {
   )
 }
 
-function LinkCard({ link, onRemove, onShare }) {
+function LinkCard({ link, onRemove, onShare }: { link: Link; onRemove: () => void; onShare: () => void }) {
   return (
     <Card className="h-full">
       <CardHeader className="p-3 pb-1">
@@ -336,12 +336,12 @@ function LinkCard({ link, onRemove, onShare }) {
   )
 }
 
-function MindMapView({ links, onRemove, onShare }) {
-  const [selectedNode, setSelectedNode] = useState(null)
+function MindMapView({ links, onRemove, onShare }: { links: Link[], onRemove: (id: string) => void, onShare: (link: Link) => void }) {
+  const [selectedNode, setSelectedNode] = useState<Link | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
 
   // Find connections between links based on shared tags
-  const connections = []
+  const connections: { source: string; target: string; commonTags: string[] }[] = []
   links.forEach((source, i) => {
     links.slice(i + 1).forEach((target) => {
       const commonTags = source.tags.filter((tag) => target.tags.includes(tag))
@@ -355,12 +355,38 @@ function MindMapView({ links, onRemove, onShare }) {
     })
   })
 
-  const handleNodeClick = (link) => {
-    setSelectedNode(link)
+  interface Connection {
+    source: string;
+    target: string;
+    commonTags: string[];
   }
 
-  const handleShareLink = (link) => {
-    onShare(link)
+  interface MindMapViewProps {
+    links: Link[];
+    onRemove: (id: string) => void;
+    onShare: (link: Link) => void;
+  }
+
+  interface LinkCardProps {
+    link: Link;
+    onRemove: () => void;
+    onShare: () => void;
+  }
+
+  interface HandleNodeClick {
+    (link: Link): void;
+  }
+
+  const handleNodeClick: HandleNodeClick = (link) => {
+    setSelectedNode(link);
+  };
+
+  interface HandleShareLink {
+    (link: Link): void;
+  }
+
+  const handleShareLink: HandleShareLink = (link) => {
+    onShare(link);
   }
 
   return (
@@ -597,8 +623,12 @@ function MindMapView({ links, onRemove, onShare }) {
 }
 
 // Helper function to get a color based on category
-function getCategoryColor(category) {
-  const colors = {
+interface CategoryColors {
+  [key: string]: string;
+}
+
+function getCategoryColor(category: string): string {
+  const colors: CategoryColors = {
     Development: "#3b82f6", // blue
     Design: "#ec4899", // pink
     Marketing: "#f97316", // orange
@@ -610,13 +640,13 @@ function getCategoryColor(category) {
     Productivity: "#eab308", // yellow
     Hosting: "#6366f1", // indigo
     Other: "#6b7280", // gray
-  }
+  };
 
-  return colors[category] || colors["Other"]
+  return colors[category] || colors["Other"];
 }
 
 // Helper function to adjust color brightness
-function adjustColorBrightness(hex, percent) {
+function adjustColorBrightness(hex: string, percent: number) {
   // Convert hex to RGB
   let r = Number.parseInt(hex.substring(1, 3), 16)
   let g = Number.parseInt(hex.substring(3, 5), 16)

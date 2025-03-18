@@ -25,7 +25,14 @@ const categories = [
 ]
 
 // Update the component to show which folder we're adding to
-export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }) {
+interface AddLinkModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onAdd: (link: { title: string; url: string; description: string; category: string; tags: string[] }) => void;
+  folderId?: string;
+}
+
+export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }: AddLinkModalProps) {
   // Add this near the top of the component, after the useState declarations
   // Get folder name if adding to a folder
   const [folderName, setFolderName] = useState("")
@@ -45,7 +52,7 @@ export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }) {
       const savedFolders = localStorage.getItem("chromo-folders")
       if (savedFolders) {
         const folders = JSON.parse(savedFolders)
-        const folder = folders.find((f) => f.id === folderId)
+        const folder: { id: string; name: string } | undefined = folders.find((f: { id: string }) => f.id === folderId)
         if (folder) {
           setFolderName(folder.name)
         }
@@ -55,34 +62,65 @@ export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }) {
     }
   }, [folderId])
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+  interface FormData {
+    title: string;
+    url: string;
+    description: string;
+    category: string;
+    tags: string;
   }
 
-  const handleCategoryChange = (value) => {
-    setFormData((prev) => ({ ...prev, category: value }))
+  interface AISummary {
+    description: string;
+    suggestedTags: string[];
   }
 
-  const handleSubmit = (e) => {
-    e.preventDefault()
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev: FormData) => ({ ...prev, [name]: value }));
+  }
+
+  const handleCategoryChange = (value: string) => {
+    setFormData((prev: FormData) => ({ ...prev, category: value }))
+  }
+
+  interface FormData {
+    title: string;
+    url: string;
+    description: string;
+    category: string;
+    tags: string;
+  }
+
+  interface AddLink {
+    title: string;
+    url: string;
+    description: string;
+    category: string;
+    tags: string[];
+  }
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
 
     // Basic validation
-    if (!formData.title || !formData.url) return
+    if (!formData.title || !formData.url) return;
 
     // Process tags into an array
     const tags = formData.tags
       .split(",")
       .map((tag) => tag.trim())
-      .filter((tag) => tag !== "")
+      .filter((tag) => tag !== "");
 
-    onAdd({
+    const newLink: AddLink = {
       title: formData.title,
       url: formData.url,
       description: formData.description,
       category: formData.category,
       tags: tags.length > 0 ? tags : ["uncategorized"],
-    })
+    };
+
+    onAdd(newLink);
 
     // Reset form and close modal
     setFormData({
@@ -91,10 +129,10 @@ export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }) {
       description: "",
       category: "Other",
       tags: "",
-    })
-    setActiveTab("basic")
-    onClose()
-  }
+    });
+    setActiveTab("basic");
+    onClose();
+  };
 
   // Auto-extract title from URL
   const extractTitleFromUrl = async () => {
@@ -116,7 +154,7 @@ export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }) {
     }
   }
 
-  const handleAISummaryComplete = ({ description, suggestedTags }) => {
+  const handleAISummaryComplete = ({ description, suggestedTags }: { description: string; suggestedTags: string[] }) => {
     setFormData((prev) => ({
       ...prev,
       description: description,

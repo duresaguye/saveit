@@ -10,26 +10,63 @@ import ShareModal from "@/components/share-modal"
 import { toast } from "sonner"
 
 
-export default function FolderView({ folder, links, onBack, onRemoveLink, onShareFolder, onAddLink }) {
+interface FolderViewProps {
+  folder: {
+    id: string;
+    name: string;
+    links: string[];
+  };
+  links: {
+    id: string;
+    title: string;
+    url: string;
+    description?: string;
+    category: string;
+    tags: string[];
+  }[];
+  onBack: () => void;
+  onRemoveLink: (folderId: string, linkId: string) => void;
+  onShareFolder: (folder: { id: string; name: string; links: string[] }) => void;
+  onAddLink: (folderId: string) => void;
+}
+
+interface Link {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  category: string;
+  tags: string[];
+}
+
+export default function FolderView({ folder, links, onBack, onRemoveLink, onShareFolder, onAddLink }: FolderViewProps) {
 
   const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [selectedLink, setSelectedLink] = useState(null)
+  const [selectedLink, setSelectedLink] = useState<Link | null>(null)
   const [viewMode, setViewMode] = useState("grid") // grid or mindmap
 
   // Get the actual link objects from their IDs
-  const folderLinks = folder.links.map((linkId) => links.find((link) => link.id === linkId)).filter(Boolean) // Remove any undefined links (in case a link was deleted)
+  const folderLinks: Link[] = folder.links.map((linkId) => links.find((link) => link.id === linkId)).filter((link): link is Link => link !== undefined) // Remove any undefined links (in case a link was deleted)
 
-  const handleRemoveLink = (linkId) => {
-    onRemoveLink(folder.id, linkId)
-    toast( "Link removed from folder",
-    )
+  interface Link {
+    id: string;
+    title: string;
+    url: string;
+    description?: string;
+    category: string;
+    tags: string[];
   }
+
+  const handleRemoveLink = (linkId: string) => {
+    onRemoveLink(folder.id, linkId);
+    toast("Link removed from folder");
+  };
 
   const handleShareFolder = () => {
     onShareFolder(folder)
   }
 
-  const handleShareLink = (link) => {
+  const handleShareLink = (link: Link) => {
     setSelectedLink(link)
     setShareModalOpen(true)
   }
@@ -90,7 +127,7 @@ export default function FolderView({ folder, links, onBack, onRemoveLink, onShar
         </div>
       ) : viewMode === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {folderLinks.map((link) => (
+          {folderLinks.map((link) => link && link.id && (
             <LinkCard
               key={link.id}
               link={link}
@@ -110,7 +147,7 @@ export default function FolderView({ folder, links, onBack, onRemoveLink, onShar
   )
 }
 
-function LinkCard({ link, onRemove, onShare }) {
+function LinkCard({ link, onRemove, onShare }: { link: Link; onRemove: () => void; onShare: () => void }) {
   return (
     <Card className="cursor-move">
       <CardHeader className="p-3 pb-1">
@@ -177,12 +214,12 @@ function LinkCard({ link, onRemove, onShare }) {
   )
 }
 
-function MindMapView({ links, onRemove, onShare }) {
-  const [selectedNode, setSelectedNode] = useState(null)
+function MindMapView({ links, onRemove, onShare }: { links: Link[], onRemove: (id: string) => void, onShare: (link: Link) => void }) {
+  const [selectedNode, setSelectedNode] = useState<Link | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
 
   // Find connections between links based on shared tags
-  const connections = []
+  const connections: { source: string; target: string; commonTags: string[] }[] = []
   links.forEach((source, i) => {
     links.slice(i + 1).forEach((target) => {
       const commonTags = source.tags.filter((tag) => target.tags.includes(tag))
@@ -196,11 +233,11 @@ function MindMapView({ links, onRemove, onShare }) {
     })
   })
 
-  const handleNodeClick = (link) => {
+  const handleNodeClick = (link: Link) => {
     setSelectedNode(link)
   }
 
-  const handleShareLink = (link) => {
+  const handleShareLink = (link: Link) => {
     onShare(link)
   }
 
@@ -438,8 +475,12 @@ function MindMapView({ links, onRemove, onShare }) {
 }
 
 // Helper function to get a color based on category
-function getCategoryColor(category) {
-  const colors = {
+interface CategoryColors {
+  [key: string]: string;
+}
+
+function getCategoryColor(category: string): string {
+  const colors: CategoryColors = {
     Development: "#3b82f6", // blue
     Design: "#ec4899", // pink
     Marketing: "#f97316", // orange
@@ -451,24 +492,24 @@ function getCategoryColor(category) {
     Productivity: "#eab308", // yellow
     Hosting: "#6366f1", // indigo
     Other: "#6b7280", // gray
-  }
+  };
 
-  return colors[category] || colors["Other"]
+  return colors[category] || colors["Other"];
 }
 
-// Helper function to adjust color brightness
-function adjustColorBrightness(hex, percent) {
+function adjustColorBrightness(hex: string, percent: number): string {
   // Convert hex to RGB
-  let r = Number.parseInt(hex.substring(1, 3), 16)
-  let g = Number.parseInt(hex.substring(3, 5), 16)
-  let b = Number.parseInt(hex.substring(5, 7), 16)
+  let r = Number.parseInt(hex.substring(1, 3), 16);
+  let g = Number.parseInt(hex.substring(3, 5), 16);
+  let b = Number.parseInt(hex.substring(5, 7), 16);
 
   // Adjust brightness
-  r = Math.max(0, Math.min(255, r + percent))
-  g = Math.max(0, Math.min(255, g + percent))
-  b = Math.max(0, Math.min(255, b + percent))
+  r = Math.max(0, Math.min(255, r + percent));
+  g = Math.max(0, Math.min(255, g + percent));
+  b = Math.max(0, Math.min(255, b + percent));
 
   // Convert back to hex
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`
+  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
+
 

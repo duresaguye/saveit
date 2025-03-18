@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, FormEvent } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -8,7 +8,21 @@ import { Label } from "@/components/ui/label"
 import { Folder, FolderPlus } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 
-export default function FolderModal({ isOpen, onClose, folder = null, onSave }) {
+interface Folder {
+  id: string;
+  name: string;
+  links: any[];
+  dateCreated: string;
+}
+
+
+interface FolderModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  folder?: Folder | null;
+  onSave: (folderData: Folder, addLinksAfter: boolean) => void;
+}
+export default function FolderModal({ isOpen, onClose, folder = null, onSave }: FolderModalProps) {
   const [folderName, setFolderName] = useState("")
   const [addLinksAfter, setAddLinksAfter] = useState(false)
 
@@ -19,7 +33,7 @@ export default function FolderModal({ isOpen, onClose, folder = null, onSave }) 
     }
   }, [isOpen, folder])
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
 
     if (!folderName.trim()) return
@@ -82,7 +96,7 @@ export default function FolderModal({ isOpen, onClose, folder = null, onSave }) 
 
           <div className="space-y-2 mt-4">
             <div className="flex items-center space-x-2">
-              <Checkbox id="add-links-after" checked={addLinksAfter} onCheckedChange={setAddLinksAfter} />
+              <Checkbox id="add-links-after" checked={addLinksAfter} onCheckedChange={(checked) => setAddLinksAfter(checked === true)} />
               <Label htmlFor="add-links-after">Add links to this folder after creation</Label>
             </div>
           </div>

@@ -9,15 +9,29 @@ import { useDrop } from "react-dnd"
 import { toast } from "sonner"
 
 
-export default function FolderCard({ folder, onOpen, onEdit, onDelete, onShare, onDropLink, onAddLink }) {
+interface FolderCardProps {
+  folder: {
+    id: string;
+    name: string;
+    links: { id: string }[];
+  };
+  onOpen: (folder: { id: string; name: string; links: { id: string }[] }) => void;
+  onEdit: (folder: { id: string; name: string; links: { id: string }[] }) => void;
+  onDelete: (folder: { id: string; name: string; links: { id: string }[] }) => void;
+  onShare: (folder: { id: string; name: string; links: { id: string }[] }) => void;
+  onDropLink: (folderId: string, linkId: string) => void;
+  onAddLink: (linkId: string, folderId: string) => void;
+}
+
+export default function FolderCard({ folder, onOpen, onEdit, onDelete, onShare, onDropLink, onAddLink }: FolderCardProps) {
 
   const [isHovering, setIsHovering] = useState(false)
 
   // Setup drop target for links
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: "LINK",
-    drop: (item) => {
-      onDropLink(folder.id, item.id)
+    drop: (item: { id: string }) => {
+      onDropLink(folder.id, (item as { id: string }).id)
       toast(`Added to "${folder.name}"`,
       )
       return { folderName: folder.name }
@@ -34,7 +48,7 @@ export default function FolderCard({ folder, onOpen, onEdit, onDelete, onShare, 
 
   return (
     <Card
-      ref={drop}
+      ref={drop as unknown as React.Ref<HTMLDivElement>}
       className={`${dropStyle} transition-all duration-200 ${isHovering ? "shadow-md" : ""}`}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -57,7 +71,7 @@ export default function FolderCard({ folder, onOpen, onEdit, onDelete, onShare, 
                 <FolderOpen className="h-4 w-4 mr-2" />
                 Open Folder
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onAddLink(folder.id)}>
+              <DropdownMenuItem onClick={() => onAddLink("new-link-id", folder.id)}>
                 <Plus className="h-4 w-4 mr-2" />
                 Add Link to Folder
               </DropdownMenuItem>
@@ -69,7 +83,7 @@ export default function FolderCard({ folder, onOpen, onEdit, onDelete, onShare, 
                 <Edit className="h-4 w-4 mr-2" />
                 Rename
               </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(folder.id)}>
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={() => onDelete(folder)}>
                 <Trash2 className="h-4 w-4 mr-2" />
                 Delete
               </DropdownMenuItem>

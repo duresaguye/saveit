@@ -3,22 +3,32 @@
 import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts"
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, TooltipProps } from "recharts"
 import { Tag, FolderTree, TrendingUp, Calendar } from "lucide-react"
 
-export default function LinkAnalytics({ links }) {
+interface Link {
+  category: string;
+  tags: string[];
+  dateAdded: string;
+}
+
+interface LinkAnalyticsProps {
+  links: Link[];
+}
+
+export default function LinkAnalytics({ links }: LinkAnalyticsProps) {
   const [activeTab, setActiveTab] = useState("categories")
 
   // Calculate category distribution
   const categoryData = Object.entries(
-    links.reduce((acc, link) => {
+    links.reduce((acc: { [key: string]: number }, link) => {
       acc[link.category] = (acc[link.category] || 0) + 1
       return acc
     }, {}),
   ).map(([name, value]) => ({ name, value }))
 
   // Calculate tag distribution (top 10)
-  const tagCounts = links.reduce((acc, link) => {
+  const tagCounts = links.reduce((acc: { [key: string]: number }, link) => {
     link.tags.forEach((tag) => {
       acc[tag] = (acc[tag] || 0) + 1
     })
@@ -31,7 +41,7 @@ export default function LinkAnalytics({ links }) {
     .map(([name, value]) => ({ name, value }))
 
   // Calculate links added over time (by month)
-  const timeData = links.reduce((acc, link) => {
+  const timeData = links.reduce((acc: { [key: string]: number }, link) => {
     const date = new Date(link.dateAdded)
     const month = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`
 
@@ -61,7 +71,7 @@ export default function LinkAnalytics({ links }) {
     "#6b7280",
   ]
 
-  const CustomTooltip = ({ active, payload, label }) => {
+  const CustomTooltip = ({ active, payload, label }: TooltipProps<any, any>) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border rounded-md shadow-md p-2 text-sm">

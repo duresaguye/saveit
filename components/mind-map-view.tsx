@@ -8,19 +8,36 @@ import { Trash2, ExternalLink, X, Share, Check } from "lucide-react"
 import ShareModal from "@/components/share-modal"
 import { useDrag } from "react-dnd"
 
+interface Link {
+  id: string;
+  title: string;
+  url: string;
+  category: string;
+  description?: string;
+  tags: string[];
+}
+
+interface MindMapViewProps {
+  links: Link[];
+  onDelete: (id: string) => void;
+  isMultiSelectMode?: boolean;
+  selectedLinks?: string[];
+  onToggleSelect?: (id: string) => void;
+}
+
 export default function MindMapView({
   links,
   onDelete,
   isMultiSelectMode = false,
   selectedLinks = [],
   onToggleSelect = () => {},
-}) {
-  const containerRef = useRef(null)
-  const [nodes, setNodes] = useState([])
-  const [selectedNode, setSelectedNode] = useState(null)
-  const [hoverNode, setHoverNode] = useState(null)
+}: MindMapViewProps) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [nodes, setNodes] = useState<Array<Link & { x: number; y: number }>>([])
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null)
+  const [hoverNode, setHoverNode] = useState<string | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [draggedNodeId, setDraggedNodeId] = useState(null)
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
 
   // Create a single drag handler at the component level
   const [{ isDragging }, drag] = useDrag({
@@ -70,18 +87,31 @@ export default function MindMapView({
     }
   }, [draggedNodeId, drag])
 
-  const handleNodeClick = (node) => {
-    if (isMultiSelectMode) {
-      onToggleSelect(node.id)
-    } else {
-      setSelectedNode(node)
-    }
+  interface Node extends Link {
+    x: number;
+    y: number;
   }
 
-  const getCategoryGradient = (category) => {
+  interface HandleNodeClickProps {
+    node: Node;
+  }
+
+  const handleNodeClick = ({ node }: HandleNodeClickProps) => {
+    if (isMultiSelectMode) {
+      onToggleSelect(node.id);
+    } else {
+      setSelectedNode(node);
+    }
+  };
+
+  interface GetCategoryGradientProps {
+    category: string;
+  }
+
+  const getCategoryGradient = ({ category }: GetCategoryGradientProps): string => {
     const baseColor = getCategoryColor(category)
     // Create a slightly darker version for gradient
-    const darkerColor = adjustColorBrightness(baseColor, -20)
+    const darkerColor = adjustColorBrightness({ hex: baseColor, percent: -20 })
     return `url(#gradient-${category.toLowerCase()})`
   }
 
@@ -117,7 +147,7 @@ export default function MindMapView({
                 y2="100%"
               >
                 <stop offset="0%" stopColor={getCategoryColor(category)} />
-                <stop offset="100%" stopColor={adjustColorBrightness(getCategoryColor(category), -20)} />
+                <stop offset="100%" stopColor={adjustColorBrightness({ hex: getCategoryColor(category), percent: -20 })} />
               </linearGradient>
             ))}
 
@@ -148,7 +178,7 @@ export default function MindMapView({
 
           {/* Center node */}
           <g
-            transform={`translate(${containerRef.current?.clientWidth / 2 || 500}, ${containerRef.current?.clientHeight / 2 || 300})`}
+            transform={`translate(${containerRef.current ? containerRef.current.clientWidth / 2 : 500}, ${containerRef.current ? containerRef.current.clientHeight / 2 : 300})`}
             className="cursor-pointer"
           >
             <circle
@@ -174,8 +204,8 @@ export default function MindMapView({
           {nodes.map((node) => (
             <line
               key={`center-${node.id}`}
-              x1={containerRef.current?.clientWidth / 2 || 500}
-              y1={containerRef.current?.clientHeight / 2 || 300}
+              x1={(containerRef.current ? containerRef.current.clientWidth / 2 : 500)}
+              y1={(containerRef.current?.clientHeight ?? 600) / 2}
               x2={node.x}
               y2={node.y}
               stroke="rgba(180, 180, 180, 0.3)"
@@ -194,7 +224,7 @@ export default function MindMapView({
               <g
                 key={node.id}
                 data-node-id={node.id}
-                onClick={() => handleNodeClick(node)}
+                onClick={() => handleNodeClick({ node })}
                 onMouseEnter={() => setHoverNode(node.id)}
                 onMouseLeave={() => setHoverNode(null)}
                 onMouseDown={() => setDraggedNodeId(node.id)}
@@ -225,7 +255,7 @@ export default function MindMapView({
                   width={140}
                   height={60}
                   rx={12}
-                  fill={getCategoryGradient(node.category)}
+                  fill={getCategoryGradient({ category: node.category })}
                   className={`transition-all duration-300 ${isHovered ? "opacity-100" : "opacity-90"}`}
                   filter={isSelected ? "url(#glow)" : ""}
                 />
@@ -279,7 +309,7 @@ export default function MindMapView({
                 <div
                   className="w-4 h-4 rounded-full"
                   style={{
-                    background: `linear-gradient(135deg, ${getCategoryColor(category)}, ${adjustColorBrightness(getCategoryColor(category), -20)})`,
+                    background: `linear-gradient(135deg, ${getCategoryColor(category)}, ${adjustColorBrightness({ hex: getCategoryColor(category), percent: -20 })})`,
                   }}
                 />
                 <span className="text-xs">{category}</span>
@@ -356,8 +386,12 @@ export default function MindMapView({
 }
 
 // Helper function to get a color based on category
-function getCategoryColor(category) {
-  const colors = {
+interface CategoryColors {
+  [key: string]: string;
+}
+
+function getCategoryColor(category: string): string {
+  const colors: CategoryColors = {
     Development: "#3b82f6", // blue
     Design: "#ec4899", // pink
     Marketing: "#f97316", // orange
@@ -369,13 +403,18 @@ function getCategoryColor(category) {
     Productivity: "#eab308", // yellow
     Hosting: "#6366f1", // indigo
     Other: "#6b7280", // gray
-  }
+  };
 
-  return colors[category] || colors["Other"]
+  return colors[category] || colors["Other"];
 }
 
 // Helper function to adjust color brightness
-function adjustColorBrightness(hex, percent) {
+interface AdjustColorBrightnessProps {
+  hex: string;
+  percent: number;
+}
+
+function adjustColorBrightness({ hex, percent }: AdjustColorBrightnessProps): string {
   // Convert hex to RGB
   let r = Number.parseInt(hex.substring(1, 3), 16)
   let g = Number.parseInt(hex.substring(3, 5), 16)

@@ -2,12 +2,26 @@
 
 import { createContext, useContext, useEffect, useState } from "react"
 
-const ThemeProviderContext = createContext({
+interface ThemeContextType {
+  theme: string;
+  setTheme: (theme: string) => void;
+}
+
+const ThemeProviderContext = createContext<ThemeContextType>({
   theme: "light",
-  setTheme: (theme) => {},
+  setTheme: (theme: string) => {},
 })
 
-export function ThemeProvider({ children, defaultTheme = "system", storageKey = "chromo-theme", ...props }) {
+import { ReactNode } from "react";
+
+interface ThemeProviderProps {
+  children: ReactNode;
+  defaultTheme?: string;
+  storageKey?: string;
+  [key: string]: any;
+}
+
+export function ThemeProvider({ children, defaultTheme = "system", storageKey = "chromo-theme", ...props }: ThemeProviderProps) {
   const [theme, setTheme] = useState(defaultTheme)
 
   useEffect(() => {
@@ -29,9 +43,14 @@ export function ThemeProvider({ children, defaultTheme = "system", storageKey = 
     }
   }, [defaultTheme, storageKey])
 
-  const value = {
+  interface ThemeContextValue {
+    theme: string;
+    setTheme: (newTheme: string) => void;
+  }
+
+  const value: ThemeContextValue = {
     theme,
-    setTheme: (newTheme) => {
+    setTheme: (newTheme: string) => {
       const root = window.document.documentElement
       localStorage.setItem(storageKey, newTheme)
 

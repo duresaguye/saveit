@@ -8,7 +8,22 @@ import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
 import { useMobile } from "@/hooks/use-mobile"
 
-export default function Sidebar({ isOpen, onClose, links }) {
+interface Link {
+  id: string;
+  url: string;
+  title: string;
+  dateAdded: string;
+  tags: string[];
+  category: string;
+}
+
+interface SidebarProps {
+  isOpen: boolean;
+  onClose: () => void;
+  links: Link[];
+}
+
+export default function Sidebar({ isOpen, onClose, links }: SidebarProps) {
   const [activeTab, setActiveTab] = useState("tags")
   const isMobile = useMobile()
 
@@ -166,21 +181,25 @@ export default function Sidebar({ isOpen, onClose, links }) {
 }
 
 // Helper function to get a color based on category
-function getCategoryColor(category) {
-  const colors = {
-    Development: "#3b82f6", // blue
-    Design: "#ec4899", // pink
-    Marketing: "#f97316", // orange
-    Business: "#10b981", // emerald
-    Education: "#8b5cf6", // violet
-    Entertainment: "#f43f5e", // rose
-    News: "#64748b", // slate
-    Social: "#06b6d4", // cyan
-    Productivity: "#eab308", // yellow
-    Hosting: "#6366f1", // indigo
-    Other: "#6b7280", // gray
-  }
+interface CategoryColors {
+  [key: string]: string;
+}
 
-  return colors[category] || colors["Other"]
+const colors: CategoryColors = {
+  Development: "#3b82f6", // blue
+  Design: "#ec4899", // pink
+  Marketing: "#f97316", // orange
+  Business: "#10b981", // emerald
+  Education: "#8b5cf6", // violet
+  Entertainment: "#f43f5e", // rose
+  News: "#64748b", // slate
+  Social: "#06b6d4", // cyan
+  Productivity: "#eab308", // yellow
+  Hosting: "#6366f1", // indigo
+  Other: "#6b7280", // gray
+}
+
+function getCategoryColor(category: string): string {
+  return colors[category] || colors["Other"];
 }
 

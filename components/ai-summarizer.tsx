@@ -8,10 +8,15 @@ import { toast } from "sonner"
 
 import { Badge } from "@/components/ui/badge"
 
-export default function AISummarizer({ url, onSummaryComplete }) {
+interface AISummarizerProps {
+  url: string;
+  onSummaryComplete: (data: { description: string; suggestedTags: string[] }) => void;
+}
+
+export default function AISummarizer({ url, onSummaryComplete }: AISummarizerProps) {
   const [loading, setLoading] = useState(false)
   const [summary, setSummary] = useState("")
-  const [suggestedTags, setSuggestedTags] = useState([])
+  const [suggestedTags, setSuggestedTags] = useState<string[]>([])
 
 
   const generateSummary = async () => {

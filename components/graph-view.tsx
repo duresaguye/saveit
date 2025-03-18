@@ -10,7 +10,14 @@ import ShareModal from "@/components/share-modal"
 import { useDrag } from "react-dnd"
 
 // Node component that safely uses the useDrag hook
-function GraphNode({ node, selectedNode, selectedLinks, handleNodeClick }) {
+interface GraphNodeProps {
+  node: { id: string; x: number; y: number; category: string; title: string };
+  selectedNode: { id: string } | null;
+  selectedLinks: string[];
+  handleNodeClick: (node: { id: string; x: number; y: number; category: string; title: string }) => void;
+}
+
+function GraphNode({ node, selectedNode, selectedLinks, handleNodeClick }: GraphNodeProps) {
   const [{ isDragging }, drag] = useDrag({
     type: "LINK",
     item: { id: node.id, type: "LINK" },
@@ -22,7 +29,7 @@ function GraphNode({ node, selectedNode, selectedLinks, handleNodeClick }) {
   return (
     <g
       key={node.id}
-      ref={drag}
+      ref={drag as unknown as React.LegacyRef<SVGGElement>}
       transform={`translate(${node.x}, ${node.y})`}
       onClick={() => handleNodeClick(node)}
       className="cursor-pointer"
@@ -45,18 +52,33 @@ function GraphNode({ node, selectedNode, selectedLinks, handleNodeClick }) {
 }
 
 // Update the component to properly handle refs and hooks
+interface Link {
+  id: string;
+  category: string;
+  title: string;
+  url: string;
+  description?: string;
+  tags: string[];
+}
+
 export default function GraphView({
   links,
   onDelete,
   isMultiSelectMode = false,
   selectedLinks = [],
   onToggleSelect = () => {},
+}: {
+  links: Link[];
+  onDelete: (id: string) => void;
+  isMultiSelectMode?: boolean;
+  selectedLinks?: string[];
+  onToggleSelect?: (id: string) => void;
 }) {
-  const containerRef = useRef(null)
-  const [nodes, setNodes] = useState([])
-  const [selectedNode, setSelectedNode] = useState(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [nodes, setNodes] = useState<Node[]>([])
+  const [selectedNode, setSelectedNode] = useState<Node | null>(null)
   const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [draggedNodeId, setDraggedNodeId] = useState(null)
+  const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null)
 
   // Create a single drag handler at the component level
   const [{ isDragging }, drag] = useDrag({
@@ -72,11 +94,15 @@ export default function GraphView({
   })
 
   // Store node refs in a ref object
-  const nodeRefs = useRef({})
+  const nodeRefs = useRef<{ [key: string]: SVGGElement | null }>({})
 
   // Add mouse event handlers to the container
-  const handleMouseDown = (e) => {
-    const nodeElement = e.target.closest("[data-node-id]")
+  interface MouseEventWithNode extends React.MouseEvent<SVGElement, MouseEvent> {
+    target: SVGElement & { closest: (selector: string) => SVGElement | null }
+  }
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement, MouseEvent>) => {
+    const nodeElement = (e.target as Element).closest("[data-node-id]")
     if (nodeElement) {
       const nodeId = nodeElement.getAttribute("data-node-id")
       setDraggedNodeId(nodeId)
@@ -123,7 +149,18 @@ export default function GraphView({
     }
   }, [draggedNodeId, drag])
 
-  const handleNodeClick = (node) => {
+  interface Node {
+    id: string;
+    x: number;
+    y: number;
+    category: string;
+    title: string;
+    url: string;
+    description?: string;
+    tags: string[];
+  }
+
+  const handleNodeClick = (node: Node) => {
     if (isMultiSelectMode) {
       onToggleSelect(node.id)
     } else {
@@ -168,7 +205,9 @@ export default function GraphView({
             return (
               <g
                 key={node.id}
-                ref={(el) => (nodeRefs.current[node.id] = el)}
+                ref={(el) => {
+                  nodeRefs.current[node.id] = el;
+                }}
                 transform={`translate(${node.x}, ${node.y})`}
                 onClick={() => handleNodeClick(node)}
                 className="cursor-pointer"
@@ -277,8 +316,12 @@ export default function GraphView({
 }
 
 // Helper function to get a color based on category
-function getCategoryColor(category) {
-  const colors = {
+interface CategoryColors {
+  [key: string]: string;
+}
+
+function getCategoryColor(category: string): string {
+  const colors: CategoryColors = {
     Development: "#3b82f6", // blue
     Design: "#ec4899", // pink
     Marketing: "#f97316", // orange
@@ -292,6 +335,6 @@ function getCategoryColor(category) {
     Other: "#6b7280", // gray
   }
 
-  return colors[category] || colors["Other"]
+  return colors[category] || colors["Other"];
 }
 

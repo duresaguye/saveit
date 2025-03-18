@@ -22,12 +22,6 @@ export const useMobile = () => {
     }
   }, [])
 
-  useEffect(() => {
-    // Set initial value after mounting on the client
-    if (typeof window !== 'undefined') {
-      setIsMobile(window.innerWidth < 768);
-    }
-  }, []);
-
   return isMobile
 }
+

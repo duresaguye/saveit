@@ -12,10 +12,29 @@ import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 
 
-export default function AdvancedSearch({ links, onSearch }) {
+interface AdvancedSearchProps {
+  links: Array<{ 
+    title: string; 
+    url: string; 
+    description?: string; 
+    tags: string[]; 
+    category: string; 
+    dateAdded: string; 
+  }>;
+  onSearch: (filteredLinks: Array<{ 
+    title: string; 
+    url: string; 
+    description?: string; 
+    tags: string[]; 
+    category: string; 
+    dateAdded: string; 
+  }>) => void;
+}
+
+export default function AdvancedSearch({ links, onSearch }: AdvancedSearchProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
-  const [filters, setFilters] = useState({
+  const [filters, setFilters] = useState<Filters>({
     categories: [],
     tags: [],
     dateRange: "all",
@@ -23,7 +42,7 @@ export default function AdvancedSearch({ links, onSearch }) {
 
 
   // Extract all unique categories and tags
-  const allCategories = [...new Set(links.map((link) => link.category))]
+  const allCategories = Array.from(new Set(links.map((link) => link.category)))
   const allTags = [...new Set(links.flatMap((link) => link.tags))]
 
   const handleSearch = () => {
@@ -100,8 +119,14 @@ export default function AdvancedSearch({ links, onSearch }) {
     }
   }
 
-  const toggleCategory = (category) => {
-    setFilters((prev) => ({
+  interface Filters {
+    categories: string[];
+    tags: string[];
+    dateRange: string;
+  }
+
+  const toggleCategory = (category: string) => {
+    setFilters((prev: Filters) => ({
       ...prev,
       categories: prev.categories.includes(category)
         ? prev.categories.filter((c) => c !== category)
@@ -109,8 +134,8 @@ export default function AdvancedSearch({ links, onSearch }) {
     }))
   }
 
-  const toggleTag = (tag) => {
-    setFilters((prev) => ({
+  const toggleTag = (tag: string) => {
+    setFilters((prev: Filters) => ({
       ...prev,
       tags: prev.tags.includes(tag) ? prev.tags.filter((t) => t !== tag) : [...prev.tags, tag],
     }))

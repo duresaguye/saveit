@@ -13,7 +13,14 @@ import { toast } from "sonner"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-export default function FolderShareModal({ isOpen, onClose, folder, links }) {
+interface FolderShareModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  folder: { name: string; links: string[] };
+  links: { id: string; title: string; url: string }[];
+}
+
+export default function FolderShareModal({ isOpen, onClose, folder, links }: FolderShareModalProps) {
   const [shareType, setShareType] = useState("link")
   const [includeMetadata, setIncludeMetadata] = useState(true)
   const [expirationDays, setExpirationDays] = useState("7")
@@ -47,7 +54,7 @@ export default function FolderShareModal({ isOpen, onClose, folder, links }) {
     const subject = `Check out this folder: ${folder?.name}`
 
     // Create a list of links
-    const linksList = folderLinks.map((link) => `- ${link.title}: ${link.url}`).join("\n")
+    const linksList = folderLinks.map((link) => link ? `- ${link.title}: ${link.url}` : "").filter(Boolean).join("\n")
 
     const body = `${message}
 
@@ -62,30 +69,33 @@ Shared via Chromo Extensions`
     )
   }
 
-  const shareViaSocial = (platform) => {
-    let url
-    const text = `Check out this folder: ${folder?.name}`
+  interface ShareViaSocialProps {
+    platform: "twitter" | "facebook" | "linkedin";
+  }
+
+  const shareViaSocial = ({ platform }: ShareViaSocialProps) => {
+    let url: string;
+    const text = `Check out this folder: ${folder?.name}`;
 
     // For social sharing, we'll just share the folder link
     switch (platform) {
       case "twitter":
-        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareableLink)}`
-        break
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareableLink)}`;
+        break;
       case "facebook":
-        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableLink)}`
-        break
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableLink)}`;
+        break;
       case "linkedin":
-        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareableLink)}`
-        break
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareableLink)}`;
+        break;
       default:
-        return
+        return;
     }
 
-    window.open(url, "_blank", "width=600,height=400")
+    window.open(url, "_blank", "width=600,height=400");
 
-    toast( `Opening ${platform} to share your folder.`,
-    )
-  }
+    toast(`Opening ${platform} to share your folder.`);
+  };
 
   if (!folder) return null
 
@@ -107,12 +117,14 @@ Shared via Chromo Extensions`
                 {folderLinks.length === 0 ? (
                   <div className="text-center py-4 text-muted-foreground">This folder is empty</div>
                 ) : (
-                  folderLinks.map((link) => (
-                    <Card key={link.id} className="p-2">
-                      <div className="font-medium">{link.title}</div>
-                      <div className="text-xs text-muted-foreground truncate">{link.url}</div>
-                    </Card>
-                  ))
+                  folderLinks.map((link) => 
+                    link && (
+                      <Card key={link.id} className="p-2">
+                        <div className="font-medium">{link.title}</div>
+                        <div className="text-xs text-muted-foreground truncate">{link.url}</div>
+                      </Card>
+                    )
+                  )
                 )}
               </div>
             </ScrollArea>
@@ -139,7 +151,7 @@ Shared via Chromo Extensions`
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={setIncludeMetadata} />
+                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={(checked) => setIncludeMetadata(checked === true)} />
                 <Label htmlFor="include-metadata">Include tags and descriptions</Label>
               </div>
             </div>
@@ -194,7 +206,7 @@ Shared via Chromo Extensions`
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial("twitter")}
+                onClick={() => shareViaSocial({ platform: "twitter" })}
               >
                 <Twitter className="h-8 w-8" />
                 <span>Twitter</span>
@@ -203,7 +215,7 @@ Shared via Chromo Extensions`
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial("facebook")}
+                onClick={() => shareViaSocial({ platform: "facebook" })}
               >
                 <Facebook className="h-8 w-8" />
                 <span>Facebook</span>
@@ -212,7 +224,7 @@ Shared via Chromo Extensions`
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial("linkedin")}
+                onClick={() => shareViaSocial({ platform: "linkedin" })}
               >
                 <Linkedin className="h-8 w-8" />
                 <span>LinkedIn</span>

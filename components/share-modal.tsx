@@ -14,18 +14,34 @@ import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-export default function ShareModal({ isOpen, onClose, link }) {
+interface ShareModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  link: {
+    id: string;
+    title: string;
+    url: string;
+  };
+}
+
+export default function ShareModal({ isOpen, onClose, link }: ShareModalProps) {
   const [shareType, setShareType] = useState("link")
   const [includeMetadata, setIncludeMetadata] = useState(true)
   const [expirationDays, setExpirationDays] = useState("7")
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
-  const [groups, setGroups] = useState([])
-  const [selectedGroups, setSelectedGroups] = useState([])
+  interface Group {
+    id: string;
+    name: string;
+    members: { email: string; name: string }[];
+  }
+  
+  const [groups, setGroups] = useState<Group[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
   const [showGroupForm, setShowGroupForm] = useState(false)
   const [newGroupName, setNewGroupName] = useState("")
   const [newGroupMembers, setNewGroupMembers] = useState("")
-  const [editingGroup, setEditingGroup] = useState(null)
+  const [editingGroup, setEditingGroup] = useState<Group | null>(null)
   
 
   // Load groups from localStorage on initial render
@@ -122,39 +138,46 @@ export default function ShareModal({ isOpen, onClose, link }) {
     )
   }
 
-  const shareViaSocial = (platform) => {
-    let url
-    const text = `Check out this link: ${link.title}`
+  interface ShareViaSocialProps {
+    platform: "twitter" | "facebook" | "linkedin";
+  }
+
+  const shareViaSocial = (platform: ShareViaSocialProps["platform"]) => {
+    let url: string;
+    const text = `Check out this link: ${link.title}`;
 
     switch (platform) {
       case "twitter":
-        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link.url)}`
-        break
+        url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(link.url)}`;
+        break;
       case "facebook":
-        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`
-        break
+        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(link.url)}`;
+        break;
       case "linkedin":
-        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link.url)}`
-        break
+        url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(link.url)}`;
+        break;
       default:
-        return
+        return;
     }
 
-    window.open(url, "_blank", "width=600,height=400")
+    window.open(url, "_blank", "width=600,height=400");
 
-    toast(`Opening ${platform} to share your link.`,
-    )
+    toast(`Opening ${platform} to share your link.`);
+  };
+
+  interface HandleGroupSelection {
+    (groupId: string): void;
   }
 
-  const handleGroupSelection = (groupId) => {
+  const handleGroupSelection: HandleGroupSelection = (groupId) => {
     setSelectedGroups((prev) => {
       if (prev.includes(groupId)) {
-        return prev.filter((id) => id !== groupId)
+        return prev.filter((id) => id !== groupId);
       } else {
-        return [...prev, groupId]
+        return [...prev, groupId];
       }
-    })
-  }
+    });
+  };
 
   const addNewGroup = () => {
     if (!newGroupName.trim()) {
@@ -216,20 +239,23 @@ export default function ShareModal({ isOpen, onClose, link }) {
     setEditingGroup(null)
   }
 
-  const editGroup = (group) => {
+  const editGroup = (group: Group) => {
     setEditingGroup(group)
     setNewGroupName(group.name)
     setNewGroupMembers(group.members.map((member) => member.email).join(", "))
     setShowGroupForm(true)
   }
 
-  const deleteGroup = (groupId) => {
-    setGroups((prev) => prev.filter((group) => group.id !== groupId))
-    setSelectedGroups((prev) => prev.filter((id) => id !== groupId))
-
-    toast( "The group has been removed.",
-    )
+  interface DeleteGroup {
+    (groupId: string): void;
   }
+
+  const deleteGroup: DeleteGroup = (groupId) => {
+    setGroups((prev) => prev.filter((group) => group.id !== groupId));
+    setSelectedGroups((prev) => prev.filter((id) => id !== groupId));
+
+    toast("The group has been removed.");
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -262,7 +288,7 @@ export default function ShareModal({ isOpen, onClose, link }) {
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={setIncludeMetadata} />
+                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={(checked) => setIncludeMetadata(checked === true)} />
                 <Label htmlFor="include-metadata">Include tags and description</Label>
               </div>
             </div>

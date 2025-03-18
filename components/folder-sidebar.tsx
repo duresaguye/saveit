@@ -11,6 +11,24 @@ import { toast } from "sonner"
 
 
 // Update the function signature to include onAddLink
+interface Folder {
+  id: string;
+  name: string;
+  links: { id: string }[];
+}
+
+interface FolderSidebarProps {
+  folders: Folder[];
+  onOpenFolder: (folder: Folder) => void;
+  onEditFolder: (folder: Folder) => void;
+  onDeleteFolder: (folder: Folder) => void;
+  onShareFolder: (folder: Folder) => void;
+  onDropLink: (linkId: string, folderId: string) => void;
+  onCreateFolder: (linkId?: string) => void;
+  onAddLink: (linkId: string, folderId: string) => void;
+  onClose: () => void;
+}
+
 export default function FolderSidebar({
   folders,
   onOpenFolder,
@@ -21,14 +39,14 @@ export default function FolderSidebar({
   onCreateFolder,
   onAddLink,
   onClose,
-}) {
+}: FolderSidebarProps) {
   const [searchQuery, setSearchQuery] = useState("")
 
 
   // Setup drop target for the sidebar itself
   const [{ isOver, canDrop }, drop] = useDrop({
     accept: "LINK",
-    drop: (item, monitor) => {
+    drop: (item: { id: string }, monitor) => {
       // If dropped directly on the sidebar (not on a specific folder)
       // We'll prompt to create a new folder with this link
       if (!monitor.didDrop()) {
@@ -53,7 +71,7 @@ export default function FolderSidebar({
   const dropStyle = isActive ? "border-primary border-dashed bg-primary/10" : canDrop ? "border-dashed" : ""
 
   return (
-    <div ref={drop} className={`w-80 border-l bg-background h-full flex flex-col ${dropStyle}`}>
+    <div ref={drop as unknown as React.RefObject<HTMLDivElement>} className={`w-80 border-l bg-background h-full flex flex-col ${dropStyle}`}>
       <div className="p-4 border-b flex justify-between items-center">
         <h2 className="font-semibold">Folders</h2>
         <div className="flex gap-2">

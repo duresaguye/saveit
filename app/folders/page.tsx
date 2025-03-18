@@ -12,10 +12,10 @@ import FolderModal from "@/components/folder-modal"
 import Link from "next/link"
 
 export default function FoldersPage() {
-  const [folders, setFolders] = useState([])
+  const [folders, setFolders] = useState<FolderData[]>([])
   const [searchQuery, setSearchQuery] = useState("")
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
-  const [editingFolder, setEditingFolder] = useState(null)
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
   
   const router = useRouter()
 
@@ -24,6 +24,7 @@ export default function FoldersPage() {
     const savedFolders = localStorage.getItem("chromo-folders")
     if (savedFolders) {
       setFolders(JSON.parse(savedFolders))
+      
     }
   }, [])
 
@@ -38,50 +39,60 @@ export default function FoldersPage() {
     setEditingFolder(null)
     setIsFolderModalOpen(true)
   }
+  interface Folder {
+    id: string;
+    name: string;
+    links: any[];
+    dateCreated: string;
+  }
 
-  const handleEditFolder = (folder) => {
+  const handleEditFolder = (folder: Folder) => {
     setEditingFolder(folder)
     setIsFolderModalOpen(true)
   }
 
-  const handleSaveFolder = (folderData, addLinksAfter) => {
-    let newFolder
+  interface FolderData {
+    id: string;
+    name: string;
+    links: any[];
+    dateCreated: string;
+  }
+
+  const handleSaveFolder = (folderData: FolderData, addLinksAfter: boolean) => {
+    let newFolder: FolderData;
 
     if (editingFolder) {
-      // Update existing folder
+      setFolders(folders.map((folder) => (folder.id === folderData.id ? { ...folderData, dateCreated: folder.dateCreated } : folder)))
       setFolders(folders.map((folder) => (folder.id === folderData.id ? folderData : folder)))
-      newFolder = folderData
+      newFolder = folderData;
 
-      toast( `"${folderData.name}" has been updated.`,
-      )
+      toast(`"${folderData.name}" has been updated.`);
     } else {
       // Add new folder
       newFolder = {
         ...folderData,
         links: [],
-      }
+      };
 
-      setFolders([...folders, newFolder])
+      setFolders([...folders, newFolder]);
 
-      toast( `"${folderData.name}" has been created.`,
-      )
+      toast(`"${folderData.name}" has been created.`);
     }
 
-    setEditingFolder(null)
+    setEditingFolder(null);
 
     // If addLinksAfter is true, navigate to the folder page
     if (addLinksAfter) {
       setTimeout(() => {
-        router.push(`/folders/${newFolder.id}`)
-      }, 300)
+        router.push(`/folders/${newFolder.id}`);
+      }, 300);
     }
   }
 
-  const handleDeleteFolder = (folderId) => {
+  const handleDeleteFolder = (folderId: string) => {
     setFolders(folders.filter((folder) => folder.id !== folderId))
 
-    toast("The folder has been removed.",
-    )
+    toast("The folder has been removed.")
   }
 
   const filteredFolders = folders.filter((folder) => {

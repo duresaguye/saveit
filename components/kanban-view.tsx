@@ -10,7 +10,22 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useDrag } from "react-dnd"
 
 // Update the component to properly handle refs and hooks
-function LinkCard({ link, onDelete, isMultiSelectMode, isSelected, onToggleSelect }) {
+interface LinkCardProps {
+  link: {
+    id: string;
+    title: string;
+    url: string;
+    description?: string;
+    tags: string[];
+    category: string;
+  };
+  onDelete: (id: string) => void;
+  isMultiSelectMode: boolean;
+  isSelected: boolean;
+  onToggleSelect: () => void;
+}
+
+function LinkCard({ link, onDelete, isMultiSelectMode, isSelected, onToggleSelect }: LinkCardProps) {
   const [shareModalOpen, setShareModalOpen] = useState(false)
   const cardRef = useRef(null)
 
@@ -118,13 +133,30 @@ function LinkCard({ link, onDelete, isMultiSelectMode, isSelected, onToggleSelec
   )
 }
 
+interface Link {
+  id: string;
+  title: string;
+  url: string;
+  description?: string;
+  tags: string[];
+  category: string;
+}
+
+interface KanbanViewProps {
+  links: Link[];
+  onDelete: (id: string) => void;
+  isMultiSelectMode?: boolean;
+  selectedLinks?: string[];
+  onToggleSelect?: (id: string) => void;
+}
+
 export default function KanbanView({
   links,
   onDelete,
   isMultiSelectMode = false,
   selectedLinks = [],
   onToggleSelect = () => {},
-}) {
+}: KanbanViewProps) {
   // Group links by category
   const categories = [...new Set(links.map((link) => link.category))]
 
