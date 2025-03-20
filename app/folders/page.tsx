@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Search, Plus, Folder, FolderPlus, Share } from "lucide-react"
+import { Search, Plus, Folder, FolderPlus, Share ,LogIn, UserPlus} from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -99,67 +99,141 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col">
       <header className="border-b sticky top-0 bg-background z-10">
-        <div className="container mx-auto p-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Saveit</h1>
-          
-          <div className="flex-1 max-w-md mx-4">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="search-input"
-                type="search"
-                placeholder="Search folders..."
-                className="pl-8"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <ThemeToggle />
+  <div className="container mx-auto p-4">
+    {/* Top Bar - Logo + Auth Buttons */}
+    <div className="flex items-center justify-between gap-4 mb-4 md:mb-0">
+      <h1 className="text-xl font-bold">Saveit</h1>
+      
+      <div className="flex items-center gap-2 md:gap-4">
+        {/* Mobile Buttons (icon only) */}
+        <div className="flex md:hidden">
+          <Link href="/login">
+            <Button variant="outline" size="sm" className="px-2">
+              <LogIn className="h-4 w-4" />
+              <span className="sr-only">Login</span>
+            </Button>
+          </Link>
+          <Link href="/signup">
+            <Button size="sm" className="px-2">
+              <UserPlus className="h-4 w-4" />
+              <span className="sr-only">Sign Up</span>
+            </Button>
+          </Link>
         </div>
-      </header>
+
+        {/* Desktop Buttons */}
+        <div className="hidden md:flex gap-2">
+          <Link href="/login">
+            <Button variant="outline" size="sm">
+              <LogIn className="h-4 w-4 mr-2" />
+              Login
+            </Button>
+          </Link>
+          <Link href="/signup">
+            <Button size="sm">
+              <UserPlus className="h-4 w-4 mr-2" />
+              Sign Up
+            </Button>
+          </Link>
+        </div>
+
+        <ThemeToggle />
+      </div>
+    </div>
+
+    {/* Search Input - Always below on mobile, inline on desktop */}
+    <div className="md:hidden">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          id="search-input"
+          type="search"
+          placeholder="Search folders..."
+          className="pl-8 w-full"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+    </div>
+
+    {/* Desktop Search - Inline */}
+    <div className="hidden md:block absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          id="search-input-desktop"
+          type="search"
+          placeholder="Search folders..."
+          className="pl-8 w-full"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+        />
+      </div>
+    </div>
+  </div>
+</header>
 
       <div className="container mx-auto p-4">
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h2 className="text-2xl font-bold">Folders</h2>
-            <p className="text-muted-foreground">Organize your folders</p>
-          </div>
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+      <div className="space-y-1">
+  <h2 className="text-2xl font-bold">Folders</h2>
+  <p className="text-muted-foreground text-sm sm:text-base">Organize your folders</p>
+  <p className="text-muted-foreground text-xs sm:text-sm opacity-80 mt-2 max-w-prose">
+    Saveit is your modern bookmark manager - store web links, categorize them into folders, 
+    and access them across devices. Easily share collections with teams or keep them private 
+    for personal use.
+  </p>
+</div>
 
-          <div className="flex gap-2">
-            {isMultiSelectFoldersMode ? (
-              <>
-                <Button variant="outline" size="sm" onClick={() => {
-                  setIsMultiSelectFoldersMode(false)
-                  setSelectedFolders([])
-                }}>
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={() => setIsMultiFolderShareModalOpen(true)}>
-                  <Share className="h-4 w-4 mr-2" />
-                  Share Selected ({selectedFolders.length})
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsMultiSelectFoldersMode(true)}
-                  disabled={filteredFolders.length === 0}
-                >
-                  <Share className="h-4 w-4 mr-2" />
-                  Select & Share
-                </Button>
-                <Button onClick={() => setIsFolderModalOpen(true)}>
-                  <FolderPlus className="h-4 w-4 mr-2" />
-                  New Folder
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
+  {/* Buttons Group */}
+  <div className="flex flex-col xs:flex-row gap-2 sm:gap-3">
+    {isMultiSelectFoldersMode ? (
+      <div className="flex gap-2 w-full xs:w-auto">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className="flex-1 xs:flex-none"
+          onClick={() => {
+            setIsMultiSelectFoldersMode(false)
+            setSelectedFolders([])
+          }}
+        >
+          Cancel
+        </Button>
+        <Button 
+          size="sm" 
+          className="flex-1 xs:flex-none"
+          onClick={() => setIsMultiFolderShareModalOpen(true)}
+        >
+          <Share className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="hidden xs:inline">Share</span>
+          <span>({selectedFolders.length})</span>
+        </Button>
+      </div>
+    ) : (
+      <div className="flex gap-2 w-full xs:w-auto">
+        <Button
+          variant="outline"
+          size="sm"
+          className="flex-1 xs:flex-none"
+          onClick={() => setIsMultiSelectFoldersMode(true)}
+          disabled={filteredFolders.length === 0}
+        >
+          <Share className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="hidden xs:inline">Select &</span> Share
+        </Button>
+        <Button 
+          size="sm" 
+          className="flex-1 xs:flex-none"
+          onClick={() => setIsFolderModalOpen(true)}
+        >
+          <FolderPlus className="h-4 w-4 mr-1 sm:mr-2" />
+          <span className="hidden xs:inline">New</span> Folder
+        </Button>
+      </div>
+    )}
+  </div>
+</div>
 
         {filteredFolders.length === 0 ? (
           <div className="text-center py-16 border rounded-lg">
