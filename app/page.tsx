@@ -4,58 +4,12 @@ import { Button } from "@/components/ui/button"
 import { Bookmark, Share2, Users, FolderTree, ArrowRight, Search, Plus, Folder, FolderPlus, Share ,LogIn, UserPlus} from "lucide-react"
 import { useMobile } from "@/hooks/use-mobile"
 import ThemeToggle from "@/components/theme-toggle"
+import { Navbar } from "@/components/Navbar"
 
 export default function LandingPage() {
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="border-b sticky top-0 bg-background z-10">
-  <div className="container mx-auto p-4">
-    
-    <div className="flex items-center justify-between gap-4 mb-4 md:mb-0">
-    <div className="flex gap-2 items-center text-xl font-bold">            
-       <Bookmark className="h-6 w-6 text-primary" />             
-       <span>SaveIT</span>         
-         </div>
-      
-      <div className="flex items-center gap-2 md:gap-4">
-     
-        <div className="flex md:hidden">
-          <Link href="/login">
-            <Button variant="outline" size="sm" className="px-2">
-              <LogIn className="h-4 w-4" />
-              <span className="sr-only">Login</span>
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button size="sm" className="px-2">
-              <UserPlus className="h-4 w-4" />
-              <span className="sr-only">Sign Up</span>
-            </Button>
-          </Link>
-        </div>
-
-        {/* Desktop Buttons */}
-        <div className="hidden md:flex gap-2">
-          <Link href="/login">
-            <Button variant="outline" size="sm">
-              <LogIn className="h-4 w-4 mr-2" />
-              Login
-            </Button>
-          </Link>
-          <Link href="/signup">
-            <Button size="sm">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Sign Up
-            </Button>
-          </Link>
-        </div>
-
-        <ThemeToggle />
-      </div>
-    </div>
-
-  </div>
-</header>
+      <Navbar />
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
           <div className="container px-4 md:px-6">
@@ -95,7 +49,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-muted">
+        <section id="features" className="w-full py-12 md:py-24 lg:py-32 ">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="space-y-2">
