@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react" 
+import { organizationClient } from "better-auth/client/plugins"
  
 export const authClient = createAuthClient({});
 
@@ -12,4 +13,7 @@ const signIn = async () => {
     });
 
     const data = { github: githubData, google: googleData };
+    plugins: [ 
+        organizationClient() 
+    ] 
 };

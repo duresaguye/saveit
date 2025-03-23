@@ -51,7 +51,7 @@ export function Navbar() {
             {session ? (
               <>
                 <div className="hidden md:flex items-center gap-2">
-                  <User className="h-4 w-4" />
+                  <img src={session.user?.image ?? ''} alt="User Image" className="h-6 w-6 rounded-full" />
                   <span className="text-sm">{session.user?.name}</span>
                 </div>
                 <Button
