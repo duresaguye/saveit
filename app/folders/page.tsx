@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { Search, Plus, Folder, FolderPlus, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -13,6 +14,8 @@ import { Checkbox } from "@/components/ui/checkbox"
 import Link from "next/link"
 import dynamic from "next/dynamic"
 import { Navbar } from "@/components/Navbar"
+import { authClient } from "@/utils/auth-client"
+import Loading from "./loading"
 
 const MultiFolderShareModal = dynamic(
   () => import("@/components/multi-link-share-modal"),
@@ -20,72 +23,148 @@ const MultiFolderShareModal = dynamic(
 )
 
 interface Link {
-  id: string
+  id: number
   title: string
   url: string
   tags: string[]
   category: string
-  dateAdded: string
+  createdAt: string
+  dateCreated: string
+  userId: string
+  folderId?: number
 }
 
 interface Folder {
-  id: string
+  id: number
   name: string
-  links: string[]
-  dateCreated: string
+  createdAt: string
+  userId: string
+  links: Link[]
 }
 
 export default function Home() {
+  const router = useRouter()
   const [links, setLinks] = useState<Link[]>([])
   const [folders, setFolders] = useState<Folder[]>([])
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const [isMultiSelectFoldersMode, setIsMultiSelectFoldersMode] = useState(false)
-  const [selectedFolders, setSelectedFolders] = useState<string[]>([])
+  const [selectedFolders, setSelectedFolders] = useState<number[]>([])
   const [isMultiFolderShareModalOpen, setIsMultiFolderShareModalOpen] = useState(false)
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null)
+  const [isProcessing, setIsProcessing] = useState(false)
+  const { data: session, isPending } = authClient.useSession()
 
   const isMobile = useMobile()
 
   useEffect(() => {
-    const savedLinks = localStorage.getItem("chromo-links")
-    const savedFolders = localStorage.getItem("chromo-folders")
-
-    if (savedLinks) setLinks(JSON.parse(savedLinks))
-    if (savedFolders) setFolders(JSON.parse(savedFolders))
-  }, [])
+    if (!isPending && !session) {
+      router.push('/login')
+    }
+  }, [session, isPending, router])
 
   useEffect(() => {
-    if (links.length > 0) localStorage.setItem("chromo-links", JSON.stringify(links))
-  }, [links])
+    const fetchData = async () => {
+      if (!session?.user) return
+      setIsProcessing(true)
+      
+      try {
+        // Fetch folders with their links
+        const foldersRes = await fetch('/api/folders')
+        if (!foldersRes.ok) throw new Error('Failed to fetch folders')
+        const foldersData = await foldersRes.json()
+        setFolders(foldersData)
 
-  useEffect(() => {
-    if (folders.length > 0) localStorage.setItem("chromo-folders", JSON.stringify(folders))
-  }, [folders])
-
-  const addLink = (newLink: Omit<Link, 'id' | 'dateAdded'>) => {
-    const linkWithId: Link = {
-      ...newLink,
-      id: Date.now().toString(),
-      dateAdded: new Date().toISOString(),
+        // Fetch unorganized links
+        const linksRes = await fetch('/api/links')
+        if (!linksRes.ok) throw new Error('Failed to fetch links')
+        const linksData = await linksRes.json()
+        setLinks(linksData)
+      } catch (error) {
+        toast.error('Failed to load data')
+      } finally {
+        setIsProcessing(false)
+      }
     }
-    setLinks([...links, linkWithId])
-    toast(`${newLink.title} has been added to your collection.`)
+
+    if (session?.user) fetchData()
+  }, [session])
+
+  const addLink = async (newLink: { title: string; url: string; description: string; category: string; tags: string[] }) => {
+    try {
+      setIsProcessing(true)
+      const response = await fetch('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newLink)
+      })
+
+      if (!response.ok) throw new Error('Failed to add link')
+      
+      const addedLink = await response.json()
+      setLinks(prev => [...prev, addedLink])
+      toast.success('Link added successfully')
+      setIsAddModalOpen(false)
+    } catch (error) {
+      toast.error('Failed to add link')
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
-  const handleSaveFolder = (folderData: Folder) => {
-    if (editingFolder) {
-      setFolders(folders.map(folder => folder.id === folderData.id ? folderData : folder))
-      toast(`"${folderData.name}" has been updated.`)
-    } else {
-      setFolders([...folders, folderData])
-      toast(`"${folderData.name}" has been created.`)
+  const handleSaveFolder = async (folderData: { name: string }) => {
+    try {
+      setIsProcessing(true)
+      const url = editingFolder ? `/api/folders/${editingFolder.id}` : '/api/folders'
+      const method = editingFolder ? 'PUT' : 'POST'
+
+      const response = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(folderData)
+      })
+
+      if (!response.ok) throw new Error(response.statusText)
+
+      const result = await response.json()
+      
+      if (editingFolder) {
+        setFolders(prev => prev.map(f => f.id === editingFolder.id ? result : f))
+        toast.success('Folder updated successfully')
+      } else {
+        setFolders(prev => [...prev, result])
+        toast.success('Folder created successfully')
+      }
+      
+      setIsFolderModalOpen(false)
+      setEditingFolder(null)
+    } catch (error) {
+      toast.error(editingFolder ? 'Failed to update folder' : 'Failed to create folder')
+    } finally {
+      setIsProcessing(false)
     }
-    setEditingFolder(null)
   }
 
-  const toggleFolderSelection = (folderId: string) => {
+  const handleDeleteFolder = async (folderId: number) => {
+    try {
+      setIsProcessing(true)
+      const response = await fetch(`/api/folders/${folderId}`, {
+        method: 'DELETE'
+      })
+
+      if (!response.ok) throw new Error('Failed to delete folder')
+      
+      setFolders(prev => prev.filter(f => f.id !== folderId))
+      toast.success('Folder deleted successfully')
+    } catch (error) {
+      toast.error('Failed to delete folder')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const toggleFolderSelection = (folderId: number) => {
     setSelectedFolders(prev => prev.includes(folderId) 
       ? prev.filter(id => id !== folderId) 
       : [...prev, folderId]
@@ -96,13 +175,15 @@ export default function Home() {
     folder.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  if (isPending || !session || isProcessing) {
+    return <Loading />
+  }
+
   return (
     <main className="flex min-h-screen flex-col">
       <Navbar />
       <div className="container mx-auto p-4">
-        {/* Search and Actions Container */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          {/* Search Input */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
             <Input
@@ -114,14 +195,12 @@ export default function Home() {
             />
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-2 flex-shrink-0">
             {isMultiSelectFoldersMode ? (
               <>
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="flex items-center gap-1"
                   onClick={() => {
                     setIsMultiSelectFoldersMode(false)
                     setSelectedFolders([])
@@ -131,12 +210,10 @@ export default function Home() {
                 </Button>
                 <Button 
                   size="sm"
-                  className="flex items-center gap-1"
                   onClick={() => setIsMultiFolderShareModalOpen(true)}
                 >
-                  <Share className="h-4 w-4" />
-                  <span>Share</span>
-                  <span>({selectedFolders.length})</span>
+                  <Share className="h-4 w-4 mr-1" />
+                  Share ({selectedFolders.length})
                 </Button>
               </>
             ) : (
@@ -144,19 +221,17 @@ export default function Home() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-1"
                   onClick={() => setIsMultiSelectFoldersMode(true)}
                   disabled={filteredFolders.length === 0}
                 >
-                  <Share className="h-4 w-4" />
+                  <Share className="h-4 w-4 mr-1" />
                   <span className="hidden sm:inline">Select & Share</span>
                 </Button>
                 <Button 
                   size="sm"
-                  className="flex items-center gap-1"
                   onClick={() => setIsFolderModalOpen(true)}
                 >
-                  <FolderPlus className="h-4 w-4" />
+                  <FolderPlus className="h-4 w-4 mr-1" />
                   <span className="hidden sm:inline">New Folder</span>
                   <span className="sm:hidden">Add</span>
                 </Button>
@@ -165,7 +240,6 @@ export default function Home() {
           </div>
         </div>
 
-        {/* Folders Grid */}
         {filteredFolders.length === 0 ? (
           <div className="text-center py-16 border rounded-lg">
             <FolderPlus className="h-16 w-16 mx-auto text-muted-foreground opacity-20 mb-4" />
@@ -181,63 +255,65 @@ export default function Home() {
             {filteredFolders.map(folder => (
               <Card
                 key={folder.id}
-                className={`h-full cursor-pointer hover:shadow-md transition-shadow relative ${
+                className={`relative hover:shadow-md transition-shadow ${
                   isMultiSelectFoldersMode && selectedFolders.includes(folder.id) 
                     ? "ring-2 ring-primary" 
                     : ""
                 }`}
-                onClick={() => isMultiSelectFoldersMode && toggleFolderSelection(folder.id)}
               >
-                {!isMultiSelectFoldersMode && (
-                  <Link 
-                    href={`/folders/${folder.id}`} 
-                    className="absolute inset-0 z-10"
+                {isMultiSelectFoldersMode ? (
+                  <div
+                    className="absolute inset-0 cursor-pointer"
+                    onClick={() => toggleFolderSelection(folder.id)}
+                  />
+                ) : (
+                  <Link
+                    href={`/folders/${folder.id}`}
+                    className="absolute inset-0"
                   />
                 )}
-                
+
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="flex items-center gap-2">
-                      {isMultiSelectFoldersMode && (
-                        <Checkbox
-                          checked={selectedFolders.includes(folder.id)}
-                          className="mr-2"
-                        />
-                      )}
-                      <Folder className="h-5 w-5 text-primary" />
-                      {folder.name}
-                    </CardTitle>
-                  </div>
+                  <CardTitle className="flex items-center gap-2">
+                    {isMultiSelectFoldersMode && (
+                      <Checkbox
+                        checked={selectedFolders.includes(folder.id)}
+                        className="mr-2"
+                      />
+                    )}
+                    <Folder className="h-5 w-5 text-primary" />
+                    {folder.name}
+                  </CardTitle>
                 </CardHeader>
                 
                 <CardContent className="relative z-20">
-                  <p className="text-muted-foreground">
-                    {folder.links.length} {folder.links.length === 1 ? "item" : "items"}
-                  </p>
-                  <div className="flex gap-2 mt-4">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="relative z-30"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingFolder(folder)
-                        setIsFolderModalOpen(true)
-                      }}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      className="relative z-30"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setFolders(folders.filter(f => f.id !== folder.id))
-                      }}
-                    >
-                      Delete
-                    </Button>
+                  <div className="flex justify-between items-center">
+                    <span className="text-muted-foreground">
+                      {folder.links.length} items
+                    </span>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setEditingFolder(folder)
+                          setIsFolderModalOpen(true)
+                        }}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleDeleteFolder(folder.id)
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -246,7 +322,6 @@ export default function Home() {
         )}
       </div>
 
-      {/* Mobile Floating Action Button */}
       {isMobile && (
         <Button
           className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg"
@@ -256,11 +331,11 @@ export default function Home() {
         </Button>
       )}
 
-      {/* Modals */}
       <AddLinkModal 
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
-        onAdd={addLink} 
+        onAdd={addLink}
+        loading={isProcessing}
       />
 
       <FolderModal
@@ -271,13 +346,14 @@ export default function Home() {
         }}
         folder={editingFolder}
         onSave={handleSaveFolder}
+        loading={isProcessing}
       />
 
       <MultiFolderShareModal
         isOpen={isMultiFolderShareModalOpen}
         onClose={() => setIsMultiFolderShareModalOpen(false)}
-        folders={folders.filter(folder => selectedFolders.includes(folder.id))}
-        links={links}
+        folders={folders.filter(f => selectedFolders.includes(f.id)).map(f => ({ ...f, id: f.id.toString(), links: f.links.map(link => link.id.toString()) }))}
+        links={links.map(link => ({ ...link, id: link.id.toString() }))}
       />
     </main>
   )

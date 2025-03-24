@@ -1,6 +1,7 @@
 import { createAuthClient } from "better-auth/react" 
 import { organizationClient } from "better-auth/client/plugins"
- 
+import { ac, member, admin } from "./permissions"
+
 export const authClient = createAuthClient({});
 
 const signIn = async () => {
@@ -13,7 +14,10 @@ const signIn = async () => {
     });
 
     const data = { github: githubData, google: googleData };
-    plugins: [ 
-        organizationClient() 
-    ] 
+    plugins: [
+        organizationClient({
+          ac,
+          roles: { member, admin }
+        })
+      ]
 };

@@ -18,85 +18,93 @@ const MultiFolderShareModal = dynamic(
 )
 
 interface Link {
-  id: string
+  id: number
   title: string
   url: string
   description?: string
   category: string
-  tags: string[]
-  dateAdded: string
+  tags: (string | { name: string })[]
+  createdAt: string
+  folderId?: number
+  
 }
 
 interface Folder {
-  id: string
+  id: number
   name: string
-  links: string[]
+  links: Link[]
+  createdAt: string
 }
 
 export default function FolderDetailPage() {
   const params = useParams()
   const router = useRouter()
-
   const [folder, setFolder] = useState<Folder | null>(null)
-  const [links, setLinks] = useState<Link[]>([])
-  const [folderLinks, setFolderLinks] = useState<Link[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   useEffect(() => {
-    const loadData = () => {
-      setIsLoading(true)
-      const savedLinks = localStorage.getItem("chromo-links") || "[]"
-      const savedFolders = localStorage.getItem("chromo-folders") || "[]"
-      
-      const allLinks: Link[] = JSON.parse(savedLinks)
-      const allFolders: Folder[] = JSON.parse(savedFolders)
-      const currentFolder = allFolders.find(f => f.id === params.id)
-
-      if (currentFolder) {
-        setFolder(currentFolder)
-        setFolderLinks(currentFolder.links
-          .map(linkId => allLinks.find(link => link.id === linkId))
-          .filter(Boolean) as Link[])
-      } else {
+    const loadFolder = async () => {
+      try {
+        const response = await fetch(`/api/folders/${params.id}`)
+        if (!response.ok) throw new Error("Failed to fetch folder")
+        const data = await response.json() as Folder
+        setFolder(data)
+      } catch (error) {
         toast.error("Folder not found")
         router.push("/folders")
+      } finally {
+        setIsLoading(false)
       }
-      setIsLoading(false)
     }
-
-    loadData()
+    loadFolder()
   }, [params.id, router])
 
-  const handleRemoveLink = (linkId: string) => {
-    if (!folder) return
-    const updatedFolder = {
-      ...folder,
-      links: folder.links.filter(id => id !== linkId)
+  const handleRemoveLink = async (linkId: number) => {
+    try {
+      const response = await fetch(`/api/links/${linkId}`, {
+        method: "DELETE"
+      })
+
+      if (!response.ok) throw new Error("Failed to remove link")
+
+      setFolder(prev => prev ? {
+        ...prev,
+        links: prev.links.filter(link => link.id !== linkId)
+      } : null)
+
+      toast.success("Link removed from folder")
+    } catch (error) {
+      toast.error("Failed to remove link")
     }
-    setFolder(updatedFolder)
-    setFolderLinks(prev => prev.filter(link => link.id !== linkId))
-    toast.success("Link removed from folder")
   }
 
-  const handleAddNewLink = (newLink: Omit<Link, "id" | "dateAdded">) => {
-    const linkWithId: Link = {
-      ...newLink,
-      id: Date.now().toString(),
-      dateAdded: new Date().toISOString()
-    }
+  const handleAddNewLink = async (newLink: Omit<Link, "id" | "createdAt">) => {
+    try {
+      const response = await fetch('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newLink,
+          folderId: Number(folder?.id)
+        })
+      })
 
-    setLinks(prev => [...prev, linkWithId])
-    if (folder) {
-      const updatedFolder = {
-        ...folder,
-        links: [...folder.links, linkWithId.id]
-      }
-      setFolder(updatedFolder)
-      setFolderLinks(prev => [...prev, linkWithId])
+      if (!response.ok) throw new Error("Failed to add link")
+
+      const createdLink = await response.json()
+      
+      setFolder(prev => prev ? {
+        ...prev,
+        links: [...prev.links, createdLink]
+      } : null)
+
+      toast.success(`${newLink.title} added to folder`)
+      setIsAddModalOpen(false)
+    } catch (error) {
+      toast.error("Failed to add link")
     }
-    toast.success(`${newLink.title} added to folder`)
   }
 
   if (isLoading) return (
@@ -147,7 +155,7 @@ export default function FolderDetailPage() {
           <div className="space-y-1">
             <h1 className="text-2xl lg:text-3xl font-bold">{folder.name}</h1>
             <p className="text-muted-foreground">
-              {folderLinks.length} {folderLinks.length === 1 ? "link" : "links"}
+              {folder.links.length} {folder.links.length === 1 ? "link" : "links"}
             </p>
           </div>
           <Button 
@@ -160,7 +168,7 @@ export default function FolderDetailPage() {
           </Button>
         </div>
 
-        {folderLinks.length === 0 ? (
+        {folder.links.length === 0 ? (
           <div className="border rounded-lg p-8 text-center space-y-4">
             <div className="h-16 w-16 mx-auto text-muted-foreground opacity-20"/>
             <h2 className="text-xl font-semibold">Empty Folder</h2>
@@ -172,7 +180,7 @@ export default function FolderDetailPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {folderLinks.map(link => (
+            {folder.links.map(link => (
               <LinkCard
                 key={link.id}
                 link={link}
@@ -185,22 +193,24 @@ export default function FolderDetailPage() {
         <MultiFolderShareModal
           isOpen={isShareModalOpen}
           onClose={() => setIsShareModalOpen(false)}
-          folders={[folder]}
-          links={links}
+          folders={[{ ...folder, id: folder.id.toString(), links: folder.links.map(link => link.url) }]}
+          links={folder.links.map(({ id, title, url }) => ({ id: id.toString(), title, url }))}
         />
 
-        <AddLinkModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onAdd={handleAddNewLink}
-          folderId={folder.id}
-        />
+<AddLinkModal
+  isOpen={isAddModalOpen}
+  onClose={() => setIsAddModalOpen(false)}
+  onAdd={handleAddNewLink}
+  folderId={folder.id.toString()}
+  loading={isLoading}
+/>
       </div>
     </div>
   )
 }
 
 function LinkCard({ link, onRemove }: { link: Link; onRemove: () => void }) {
+  const displayTags = link.tags?.map(t => typeof t === 'object' ? t.name : t) || []
   return (
     <Card className="h-full flex flex-col hover:shadow-lg transition-shadow group">
       <CardHeader className="p-4 pb-0">
@@ -265,20 +275,20 @@ function LinkCard({ link, onRemove }: { link: Link; onRemove: () => void }) {
       </CardContent>
 
       <CardFooter className="p-4 pt-0 flex flex-wrap gap-2">
-        <Badge variant="secondary" className="text-xs">
-          {link.category}
+      <Badge variant="secondary" className="text-xs">
+        {link.category}
+      </Badge>
+      {displayTags.slice(0, 3).map(tag => (
+        <Badge key={tag} variant="outline" className="text-xs">
+          {tag}
         </Badge>
-        {link.tags.slice(0, 3).map(tag => (
-          <Badge key={tag} variant="outline" className="text-xs">
-            {tag}
-          </Badge>
-        ))}
-        {link.tags.length > 3 && (
-          <Badge variant="outline" className="text-xs">
-            +{link.tags.length - 3}
-          </Badge>
-        )}
-      </CardFooter>
+      ))}
+      {displayTags.length > 3 && (
+        <Badge variant="outline" className="text-xs">
+          +{displayTags.length - 3}
+        </Badge>
+      )}
+    </CardFooter>
     </Card>
   )
 }

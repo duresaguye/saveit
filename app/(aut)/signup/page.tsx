@@ -72,7 +72,7 @@ export default function SignupPage() {
     try {
       const { data, error } =       await authClient.signIn.social({
         provider,
-        callbackURL: "/dashboard",
+        callbackURL: "/folders",
       });
 
       if (error) {

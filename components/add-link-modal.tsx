@@ -30,6 +30,7 @@ interface AddLinkModalProps {
   onClose: () => void;
   onAdd: (link: { title: string; url: string; description: string; category: string; tags: string[] }) => void;
   folderId?: string;
+  loading: boolean;
 }
 
 export default function AddLinkModal({ isOpen, onClose, onAdd, folderId }: AddLinkModalProps) {

@@ -239,6 +239,7 @@ export default function Home() {
         isOpen={isAddModalOpen} 
         onClose={() => setIsAddModalOpen(false)} 
         onAdd={addLink} 
+        loading={false}
       />
 
       <FolderModal
