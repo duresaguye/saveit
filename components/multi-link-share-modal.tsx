@@ -1,41 +1,71 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Copy, Mail, Share, Twitter, Facebook, Linkedin, ExternalLink } from "lucide-react"
+import { Copy, Mail, Twitter, Facebook, Linkedin, Folder, Users } from "lucide-react"
 import { toast } from "sonner"
 
-import { Badge } from "@/components/ui/badge"
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-interface MultiLinkShareModalProps {
+interface MultiFolderShareModalProps {
   isOpen: boolean;
   onClose: () => void;
-  links: { id: string; title: string; url: string; category: string }[];
+  folders: { id: string; name: string; links: string[] }[];
+  links: { id: string; title: string; url: string }[];
 }
 
-export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLinkShareModalProps) {
+export default function MultiFolderShareModal({ isOpen, onClose, folders, links }: MultiFolderShareModalProps) {
   const [shareType, setShareType] = useState("link")
   const [includeMetadata, setIncludeMetadata] = useState(true)
   const [expirationDays, setExpirationDays] = useState("7")
   const [email, setEmail] = useState("")
   const [message, setMessage] = useState("")
-  const [collectionName, setCollectionName] = useState(`Link Collection (${new Date().toLocaleDateString()})`)
+  const [collectionName, setCollectionName] = useState(`Folder Collection (${new Date().toLocaleDateString()})`)
 
-  // Generate a shareable link for the collection
+
+  // Add state for groups
+  interface Group {
+    id: string;
+    name: string;
+    members: { name: string; email: string }[];
+  }
+
+  const [groups, setGroups] = useState<Group[]>([])
+  const [selectedGroups, setSelectedGroups] = useState<string[]>([])
+
+  // Load groups from localStorage
+  useEffect(() => {
+    const savedGroups = localStorage.getItem("chromo-groups")
+    if (savedGroups) {
+      setGroups(JSON.parse(savedGroups))
+    }
+  }, [])
+
+  // Get all links from all selected folders
+  const getAllFolderLinks = () => {
+    const allLinkIds = folders.flatMap((folder) => folder.links)
+    const uniqueLinkIds = [...new Set(allLinkIds)]
+    return uniqueLinkIds.map((id) => links.find((link) => link.id === id)).filter(Boolean)
+  }
+
+  const folderLinks = getAllFolderLinks()
+
+  // Generate a shareable link for the folder collection
   const generateShareableLink = () => {
     // In a real app, this would create a unique link with proper authentication
     // For this demo, we'll just create a dummy link
     const baseUrl = window.location.origin
     const shareId = Math.random().toString(36).substring(2, 10)
-    const linkIds = links.map((link) => link.id).join(",")
-    return `${baseUrl}/shared/collection/${shareId}?ids=${linkIds}${includeMetadata ? "&meta=1" : ""}${expirationDays ? `&exp=${expirationDays}` : ""}`
+    const folderIds = folders.map((folder) => folder.id).join(",")
+    return `${baseUrl}/shared/folders/${shareId}?ids=${folderIds}&name=${encodeURIComponent(collectionName)}${includeMetadata ? "&meta=1" : ""}${expirationDays ? `&exp=${expirationDays}` : ""}`
   }
 
   const shareableLink = generateShareableLink()
@@ -46,28 +76,116 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
     )
   }
 
+  // Share via email
   const shareViaEmail = () => {
     // In a real app, this would send an email through a backend service
     // For this demo, we'll just open the default email client
-    const subject = `Check out this collection: ${collectionName}`
+    const subject = `Check out these folders: ${collectionName}`
 
-    // Create a list of links
-    const linksList = links.map((link) => `- ${link.title}: ${link.url}`).join("\n")
+    // Create a list of folders with their links
+    const foldersList = folders
+      .map((folder, index) => {
+        const folderLinks = folder.links
+          .map((id) => links.find((link) => link.id === id))
+          .filter(Boolean)
+          .map((link) => link ? `   - ${link.title}: ${link.url}` : "")
+          .filter(Boolean)
+          .join("\n")
 
-    const body = `${message}\n\nHere's a collection of links I thought you might find interesting:\n\n${linksList}\n\nShared via Chromo Extensions`
+        return `${index + 1}. ${folder.name} (${folder.links.length} links):\n${folderLinks}`
+      })
+      .join("\n\n")
+
+    const body = `${message || "I thought you might find these folders interesting"}
+
+I'm sharing a collection of folders with you: "${collectionName}"
+
+Folders in this collection:
+${foldersList}
+
+You can view all these folders at once here: ${shareableLink}
+
+Shared via Chromo Extensions`
+
     window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
 
-    toast("Your default email client has been opened.",
+    toast( "Your default email client has been opened with all folders in the collection.",
     )
   }
 
+  // Share with groups
+  const shareWithGroups = () => {
+    if (selectedGroups.length === 0) {
+      toast("Please select at least one group to share with.",
+       )
+      return
+    }
+
+    // Get all email addresses from selected groups
+    const recipients = selectedGroups.flatMap((groupId) => {
+      const group = groups.find((g) => g.id === groupId)
+      return group ? group.members.map((member) => member.email) : []
+    })
+
+    // Remove duplicates
+    const uniqueRecipients = [...new Set(recipients)]
+
+    // Create a list of folders with their links
+    const foldersList = folders
+      .map((folder, index) => {
+        const folderLinks = folder.links
+          .map((id) => links.find((link) => link.id === id))
+          .filter(Boolean)
+          .map((link) => link ? `   - ${link.title}: ${link.url}` : "")
+          .filter(Boolean)
+          .join("\n")
+
+        return `${index + 1}. ${folder.name} (${folder.links.length} links):\n${folderLinks}`
+      })
+      .join("\n\n")
+
+    const subject = `Check out these folders: ${collectionName}`
+    const body = `${message || "I thought you might find these folders interesting"}
+
+I'm sharing a collection of folders with you: "${collectionName}"
+
+Folders in this collection:
+${foldersList}
+
+You can view all these folders at once here: ${shareableLink}
+
+Shared via Chromo Extensions`
+
+    window.open(
+      `mailto:?bcc=${uniqueRecipients.join(",")}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
+    )
+
+    toast(`Sharing with ${uniqueRecipients.length} recipients.`,
+    )
+  }
+
+  interface HandleGroupSelectionProps {
+    groupId: string;
+  }
+
+  const handleGroupSelection = ({ groupId }: HandleGroupSelectionProps) => {
+    setSelectedGroups((prev) => {
+      if (prev.includes(groupId)) {
+        return prev.filter((id) => id !== groupId);
+      } else {
+        return [...prev, groupId];
+      }
+    });
+  };
+
+  // Share via social media
   interface ShareViaSocialProps {
     platform: "twitter" | "facebook" | "linkedin";
   }
 
   const shareViaSocial = ({ platform }: ShareViaSocialProps) => {
     let url: string;
-    const text = `Check out this collection: ${collectionName}`;
+    const text = `Check out these folders: ${collectionName}`;
 
     // For social sharing, we'll just share the collection link
     switch (platform) {
@@ -86,7 +204,8 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
 
     window.open(url, "_blank", "width=600,height=400");
 
-    toast(`Opening ${platform} to share your collection.`);
+    toast(`Opening ${platform} to share your folder collection.`,
+    );
   };
 
   return (
@@ -94,8 +213,8 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
       <DialogContent className="sm:max-w-[550px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Share className="h-5 w-5" />
-            Share Collection ({links.length} links)
+            <Folder className="h-5 w-5" />
+            Share Folders ({folders.length})
           </DialogTitle>
         </DialogHeader>
 
@@ -106,48 +225,46 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
               id="collection-name"
               value={collectionName}
               onChange={(e) => setCollectionName(e.target.value)}
-              placeholder="My Link Collection"
+              placeholder="My Folder Collection"
             />
           </div>
 
           <div className="border rounded-md overflow-hidden">
-            <div className="bg-muted p-2 font-medium text-sm">Links in this collection</div>
+            <div className="bg-muted p-2 font-medium text-sm">Selected Folders</div>
             <ScrollArea className="h-[150px]">
               <div className="p-2 space-y-2">
-                {links.map((link) => (
-                  <Card key={link.id} className="p-2">
+                {folders.map((folder) => (
+                  <Card key={folder.id} className="p-2">
                     <div className="flex justify-between items-start">
                       <div>
-                        <div className="font-medium">{link.title}</div>
-                        <div className="text-xs text-muted-foreground flex items-center gap-1">
-                          <a
-                            href={link.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 hover:underline"
-                          >
-                            {new URL(link.url).hostname}
-                            <ExternalLink className="h-3 w-3 inline ml-1" />
-                          </a>
+                        <div className="font-medium flex items-center gap-2">
+                          <Folder className="h-4 w-4 text-primary" />
+                          {folder.name}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {folder.links.length} {folder.links.length === 1 ? "link" : "links"}
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline" className="text-xs">
-                          {link.category}
-                        </Badge>
-                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        Folder
+                      </Badge>
                     </div>
                   </Card>
                 ))}
               </div>
             </ScrollArea>
           </div>
+
+          <div className="text-sm text-muted-foreground">
+            Total links: {folderLinks.length} across {folders.length} folders
+          </div>
         </div>
 
         <Tabs defaultValue="link" onValueChange={setShareType}>
-          <TabsList className="grid grid-cols-3 mb-4">
+          <TabsList className="grid grid-cols-4 mb-4">
             <TabsTrigger value="link">Link</TabsTrigger>
             <TabsTrigger value="email">Email</TabsTrigger>
+            <TabsTrigger value="groups">Groups</TabsTrigger>
             <TabsTrigger value="social">Social</TabsTrigger>
           </TabsList>
 
@@ -186,6 +303,20 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
           </TabsContent>
 
           <TabsContent value="email" className="space-y-4">
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <Label>Sharing folder collection</Label>
+                <Badge variant="outline">{folders.length} folders</Badge>
+              </div>
+              <div className="bg-muted/50 p-2 rounded-md text-sm">
+                <p className="font-medium">{collectionName}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  The recipient will receive a link to view all {folders.length} folders with {folderLinks.length}{" "}
+                  links.
+                </p>
+              </div>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="email">Recipient Email</Label>
               <Input
@@ -202,7 +333,7 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
               <textarea
                 id="message"
                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="I thought you might find these links interesting..."
+                placeholder="I thought you might find these folders interesting..."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
               />
@@ -212,6 +343,102 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
               <Mail className="h-4 w-4 mr-2" />
               Send Email
             </Button>
+          </TabsContent>
+
+          <TabsContent value="groups" className="space-y-4">
+            <div className="space-y-2 mb-4">
+              <div className="flex items-center justify-between">
+                <Label className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  Share with Groups
+                </Label>
+                <Badge variant="outline">{folders.length} folders</Badge>
+              </div>
+              <div className="bg-muted/50 p-2 rounded-md text-sm">
+                <p className="font-medium">{collectionName}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Select groups to share these folders with multiple people at once.
+                </p>
+              </div>
+            </div>
+
+            {groups.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <Users className="h-12 w-12 mx-auto mb-2 opacity-20" />
+                <p>You don't have any groups yet.</p>
+                <p className="text-sm">Create groups in the Groups page to share with multiple people at once.</p>
+                <Button variant="outline" className="mt-4" onClick={() => (window.location.href = "/groups")}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Manage Groups
+                </Button>
+              </div>
+            ) : (
+              <ScrollArea className="h-[200px] border rounded-md p-2">
+                <div className="space-y-2">
+                  {groups.map((group) => (
+                    <div
+                      key={group.id}
+                      className={`flex items-start justify-between p-2 rounded-md ${
+                        selectedGroups.includes(group.id) ? "bg-muted" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-2">
+                        <Checkbox
+                          id={`group-${group.id}`}
+                          checked={selectedGroups.includes(group.id)}
+                          onCheckedChange={() => handleGroupSelection({ groupId: group.id })}
+                        />
+                        <div>
+                          <Label htmlFor={`group-${group.id}`} className="font-medium cursor-pointer">
+                            {group.name}
+                          </Label>
+                          <div className="text-xs text-muted-foreground mt-1">
+                            {group.members.length} {group.members.length === 1 ? "member" : "members"}
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {group.members.slice(0, 3).map((member, idx) => (
+                              <Avatar key={idx} className="h-6 w-6">
+                                <AvatarFallback className="text-[10px]">
+                                  {member.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .join("")}
+                                </AvatarFallback>
+                              </Avatar>
+                            ))}
+                            {group.members.length > 3 && (
+                              <Badge variant="outline" className="text-xs">
+                                +{group.members.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+
+            {groups.length > 0 && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="group-message">Message (Optional)</Label>
+                  <textarea
+                    id="group-message"
+                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    placeholder="I thought you might find these folders interesting..."
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                  />
+                </div>
+
+                <Button className="w-full" onClick={shareWithGroups} disabled={selectedGroups.length === 0}>
+                  <Users className="h-4 w-4 mr-2" />
+                  Share with Selected Groups
+                </Button>
+              </>
+            )}
           </TabsContent>
 
           <TabsContent value="social" className="space-y-4">
@@ -266,6 +493,12 @@ export default function MultiLinkShareModal({ isOpen, onClose, links }: MultiLin
             <Button onClick={shareViaEmail} disabled={!email}>
               <Mail className="h-4 w-4 mr-2" />
               Send
+            </Button>
+          )}
+          {shareType === "groups" && (
+            <Button onClick={shareWithGroups} disabled={selectedGroups.length === 0}>
+              <Users className="h-4 w-4 mr-2" />
+              Share
             </Button>
           )}
         </DialogFooter>

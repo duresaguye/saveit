@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner"
 
 
 export const metadata = {
-  title: "Chromo Extensions",
+  title: "saveIT",
   description: "Manage and organize your links",
 }
 

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button"
 import { Sparkles, Loader2, Check, Copy, Tag } from "lucide-react"
 import { toast } from "sonner"
-
 import { Badge } from "@/components/ui/badge"
 
 interface AISummarizerProps {
@@ -18,50 +17,35 @@ export default function AISummarizer({ url, onSummaryComplete }: AISummarizerPro
   const [summary, setSummary] = useState("")
   const [suggestedTags, setSuggestedTags] = useState<string[]>([])
 
-
   const generateSummary = async () => {
     setLoading(true)
-
     try {
-      // In a real app, this would call an AI service like OpenAI
-      // For this demo, we'll simulate the AI response
-      await new Promise((resolve) => setTimeout(resolve, 2000))
+      const response = await fetch("/api/summarize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url }),
+      })
 
-      // Generate a fake summary based on the URL
-      const domain = new URL(url).hostname.replace("www.", "")
-
-      let fakeSummary = ""
-      let fakeTags = []
-
-      if (domain.includes("github")) {
-        fakeSummary =
-          "This GitHub repository contains code and documentation for a software project. It includes installation instructions, usage examples, and contribution guidelines."
-        fakeTags = ["github", "repository", "code", "development"]
-      } else if (domain.includes("medium")) {
-        fakeSummary =
-          "This Medium article discusses modern web development techniques, focusing on performance optimization and user experience. It provides practical examples and case studies."
-        fakeTags = ["article", "web-development", "performance", "ux"]
-      } else if (domain.includes("youtube")) {
-        fakeSummary =
-          "This YouTube video demonstrates how to implement a specific feature in a web application. It includes step-by-step instructions and code examples."
-        fakeTags = ["video", "tutorial", "coding", "demonstration"]
-      } else if (domain.includes("docs")) {
-        fakeSummary =
-          "This documentation page provides detailed information about API endpoints, parameters, and response formats. It includes examples and troubleshooting tips."
-        fakeTags = ["documentation", "api", "reference", "guide"]
-      } else {
-        fakeSummary = `This webpage from ${domain} contains valuable information related to technology and development. It covers key concepts and provides practical insights for implementation.`
-        fakeTags = ["technology", domain.split(".")[0], "resource"]
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to fetch summary")
       }
 
-      setSummary(fakeSummary)
-      setSuggestedTags(fakeTags)
+      const data = await response.json()
+      
+      // Handle structured response
+      setSummary(data.summary || "No summary available.")
+      setSuggestedTags(Array.isArray(data.tags) ? data.tags : [])
 
-      toast("AI has analyzed the content and generated a summary",
-      )
-    } catch (error) {
-      toast("Failed to generate summary",
-        )
+      toast.success("AI analysis complete", {
+        description: "Content successfully summarized and tagged"
+      })
+      
+    } catch (error: any) {
+      console.error("Generation error:", error)
+      toast.error("Analysis failed", {
+        description: error.message || "Failed to process content"
+      })
     } finally {
       setLoading(false)
     }
@@ -70,17 +54,16 @@ export default function AISummarizer({ url, onSummaryComplete }: AISummarizerPro
   const applySummaryAndTags = () => {
     onSummaryComplete({
       description: summary,
-      suggestedTags: suggestedTags,
+      suggestedTags: suggestedTags.filter(t => t.trim().length > 0),
     })
-
-    toast("Summary and tags have been applied",
-    )
+    toast.info("Content applied", {
+      description: "Summary and tags added to your link"
+    })
   }
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(summary)
-    toast( "Summary copied to clipboard",
-    )
+    toast("Summary copied to clipboard")
   }
 
   return (
@@ -90,7 +73,7 @@ export default function AISummarizer({ url, onSummaryComplete }: AISummarizerPro
           <Sparkles className="h-5 w-5 text-amber-500" />
           AI Content Analysis
         </CardTitle>
-        <CardDescription>Generate a summary and suggested tags for this link</CardDescription>
+        <CardDescription>Generate semantic summary and contextual tags</CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -100,6 +83,7 @@ export default function AISummarizer({ url, onSummaryComplete }: AISummarizerPro
               onClick={generateSummary}
               disabled={loading}
               className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              aria-label="Generate AI summary"
             >
               {loading ? (
                 <>
@@ -118,25 +102,47 @@ export default function AISummarizer({ url, onSummaryComplete }: AISummarizerPro
           <div className="space-y-4">
             <div className="space-y-2">
               <div className="flex justify-between items-start">
-                <h3 className="text-sm font-medium">Summary</h3>
-                <Button variant="ghost" size="icon" onClick={copyToClipboard} className="h-6 w-6">
-                  <Copy className="h-3 w-3" />
-                </Button>
+                <h3 className="text-sm font-medium">Content Analysis</h3>
+                <div className="flex gap-2">
+                  <Button 
+                    variant="ghost" 
+                    size="icon" 
+                    onClick={copyToClipboard} 
+                    className="h-6 w-6"
+                    aria-label="Copy summary"
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
+                </div>
               </div>
-              <div className="p-3 bg-muted rounded-md text-sm">{summary}</div>
+              <div className="p-3 bg-muted rounded-md text-sm space-y-2">
+                {summary.split('\n').map((line, index) => (
+                  <p key={index} className="text-pretty">
+                    {line.replace(/^\d+\.\s*/, '')} {/* Remove numbered prefixes */}
+                  </p>
+                ))}
+              </div>
             </div>
 
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-medium">Suggested Tags</h3>
+                <h3 className="text-sm font-medium">Contextual Tags</h3>
                 <Tag className="h-3 w-3 text-muted-foreground" />
               </div>
               <div className="flex flex-wrap gap-1">
-                {suggestedTags.map((tag) => (
-                  <Badge key={tag} variant="secondary" className="text-xs">
-                    {tag}
-                  </Badge>
-                ))}
+                {suggestedTags.length > 0 ? (
+                  suggestedTags.map((tag) => (
+                    <Badge 
+                      key={tag} 
+                      variant="secondary" 
+                      className="text-xs font-medium capitalize"
+                    >
+                      {tag}
+                    </Badge>
+                  ))
+                ) : (
+                  <p className="text-sm text-muted">No relevant tags identified</p>
+                )}
               </div>
             </div>
           </div>
@@ -145,13 +151,16 @@ export default function AISummarizer({ url, onSummaryComplete }: AISummarizerPro
 
       {summary && (
         <CardFooter>
-          <Button onClick={applySummaryAndTags} className="w-full">
+          <Button 
+            onClick={applySummaryAndTags} 
+            className="w-full bg-green-600 hover:bg-green-700"
+            aria-label="Apply summary and tags"
+          >
             <Check className="h-4 w-4 mr-2" />
-            Apply to Link
+            Apply Analysis
           </Button>
         </CardFooter>
       )}
     </Card>
   )
 }
-

@@ -2,662 +2,293 @@
 
 import { useState, useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { ArrowLeft, FolderPlus, Share, Trash2, ExternalLink, MoreHorizontal, Plus } from "lucide-react"
+import { ArrowLeft, Trash2, ExternalLink, MoreHorizontal, Plus, Share } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import ShareModal from "@/components/share-modal"
-import FolderShareModal from "@/components/folder-share-modal"
 import AddLinkModal from "@/components/add-link-modal"
 import { toast } from "sonner"
-
 import Link from "next/link"
+import dynamic from "next/dynamic"
+
+const MultiFolderShareModal = dynamic(
+  () => import("@/components/multi-link-share-modal"),
+  { ssr: false }
+)
 
 interface Link {
-  id: string
+  id: number
   title: string
   url: string
   description?: string
   category: string
-  tags: string[]
-  dateAdded: string
+  tags: (string | { name: string })[]
+  createdAt: string
+  folderId?: number
+  
 }
 
 interface Folder {
-  id: string
+  id: number
   name: string
-  links: string[]
+  links: Link[]
+  createdAt: string
 }
 
 export default function FolderDetailPage() {
   const params = useParams()
   const router = useRouter()
-
   const [folder, setFolder] = useState<Folder | null>(null)
-  const [links, setLinks] = useState<Link[]>([])
-  const [folderLinks, setFolderLinks] = useState<Link[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [shareModalOpen, setShareModalOpen] = useState(false)
-  const [folderShareModalOpen, setFolderShareModalOpen] = useState(false)
-  const [selectedLink, setSelectedLink] = useState<Link | null>(null)
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [viewMode, setViewMode] = useState<"grid" | "mindmap">("grid")
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
 
   useEffect(() => {
-    const loadData = () => {
-      setIsLoading(true)
-
-      const savedLinks = localStorage.getItem("chromo-links")
-      const allLinks: Link[] = savedLinks ? JSON.parse(savedLinks) : []
-      setLinks(allLinks)
-
-      const savedFolders = localStorage.getItem("chromo-folders")
-      const allFolders: Folder[] = savedFolders ? JSON.parse(savedFolders) : []
-      const currentFolder = allFolders.find((f) => f.id === params.id)
-
-      if (currentFolder) {
-        setFolder(currentFolder)
-
-        const folderLinkObjects = currentFolder.links
-          .map((linkId) => allLinks.find((link) => link.id === linkId))
-          .filter(Boolean) as Link[]
-
-        setFolderLinks(folderLinkObjects)
-      } else {
-        toast("The folder you're looking for doesn't exist.")
+    const loadFolder = async () => {
+      try {
+        const response = await fetch(`/api/folders/${params.id}`)
+        if (!response.ok) throw new Error("Failed to fetch folder")
+        const data = await response.json() as Folder
+        setFolder(data)
+      } catch (error) {
+        toast.error("Folder not found")
         router.push("/folders")
+      } finally {
+        setIsLoading(false)
       }
-
-      setIsLoading(false)
     }
-
-    loadData()
+    loadFolder()
   }, [params.id, router])
 
-  useEffect(() => {
-    if (folder) {
-      const savedFolders = localStorage.getItem("chromo-folders")
-      const allFolders: Folder[] = savedFolders ? JSON.parse(savedFolders) : []
+  const handleRemoveLink = async (linkId: number) => {
+    try {
+      const response = await fetch(`/api/links/${linkId}`, {
+        method: "DELETE"
+      })
 
-      const updatedFolders = allFolders.map((f) => (f.id === folder.id ? folder : f))
+      if (!response.ok) throw new Error("Failed to remove link")
 
-      localStorage.setItem("chromo-folders", JSON.stringify(updatedFolders))
-    }
-  }, [folder])
+      setFolder(prev => prev ? {
+        ...prev,
+        links: prev.links.filter(link => link.id !== linkId)
+      } : null)
 
-  useEffect(() => {
-    if (links.length > 0) {
-      localStorage.setItem("chromo-links", JSON.stringify(links))
-    }
-  }, [links])
-
-  const handleRemoveLink = (linkId: string) => {
-    if (folder) {
-      const updatedFolder = {
-        ...folder,
-        links: folder.links.filter((id) => id !== linkId),
-      }
-      setFolder(updatedFolder)
-
-      setFolderLinks(folderLinks.filter((link) => link.id !== linkId))
-
-      toast("Link removed from folder")
+      toast.success("Link removed from folder")
+    } catch (error) {
+      toast.error("Failed to remove link")
     }
   }
 
-  const handleShareFolder = () => {
-    setFolderShareModalOpen(true)
-  }
+  const handleAddNewLink = async (newLink: Omit<Link, "id" | "createdAt">) => {
+    try {
+      const response = await fetch('/api/links', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...newLink,
+          folderId: Number(folder?.id)
+        })
+      })
 
-  const handleShareLink = (link: Link) => {
-    setSelectedLink(link)
-    setShareModalOpen(true)
-  }
+      if (!response.ok) throw new Error("Failed to add link")
 
-  const handleAddLink = () => {
-    setIsAddModalOpen(true)
-  }
+      const createdLink = await response.json()
+      
+      setFolder(prev => prev ? {
+        ...prev,
+        links: [...prev.links, createdLink]
+      } : null)
 
-  const handleAddNewLink = (newLink: Omit<Link, "id" | "dateAdded">) => {
-    const linkWithId: Link = {
-      ...newLink,
-      id: Date.now().toString(),
-      dateAdded: new Date().toISOString(),
+      toast.success(`${newLink.title} added to folder`)
+      setIsAddModalOpen(false)
+    } catch (error) {
+      toast.error("Failed to add link")
     }
-
-    const updatedLinks = [...links, linkWithId]
-    setLinks(updatedLinks)
-
-    if (folder) {
-      const updatedFolder = {
-        ...folder,
-        links: [...folder.links, linkWithId.id],
-      }
-      setFolder(updatedFolder)
-
-      setFolderLinks([...folderLinks, linkWithId])
-    }
-
-    toast(`${newLink.title} has been added to the folder.`)
   }
 
-  if (isLoading) {
-    return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading folder...</p>
-        </div>
+  if (isLoading) return (
+    <div className="container mx-auto p-4 min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-primary border-t-transparent mx-auto"/>
+        <p className="text-muted-foreground">Loading folder contents...</p>
       </div>
-    )
-  }
+    </div>
+  )
 
-  if (!folder) {
-    return (
-      <div className="container mx-auto p-4 flex items-center justify-center min-h-screen">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold mb-4">Folder Not Found</h1>
-          <p className="text-muted-foreground mb-6">The folder you're looking for doesn't exist.</p>
-          <Link href="/folders">
-            <Button>
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              Back to Folders
-            </Button>
-          </Link>
-        </div>
+  if (!folder) return (
+    <div className="container mx-auto p-4 min-h-screen flex items-center justify-center">
+      <div className="text-center space-y-4">
+        <h1 className="text-2xl font-bold">Folder Not Found</h1>
+        <p className="text-muted-foreground">The requested folder does not exist</p>
+        <Link href="/folders">
+          <Button className="gap-2">
+            <ArrowLeft className="h-4 w-4"/> 
+            Back to Folders
+          </Button>
+        </Link>
       </div>
-    )
-  }
+    </div>
+  )
 
   return (
-    <div className="container mx-auto p-4">
-      <div className="space-y-4">
-        <div className="flex justify-between items-center">
-          <Link href="/folders">
-            <Button variant="ghost" className="gap-2">
-              <ArrowLeft className="h-4 w-4" />
+    <div className="container mx-auto p-4 lg:p-6">
+      <div className="space-y-6">
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          <Link href="/folders" className="w-full sm:w-auto">
+            <Button variant="ghost" className="w-full sm:w-auto gap-2">
+              <ArrowLeft className="h-4 w-4"/>
               Back to Folders
             </Button>
           </Link>
 
-          <div className="flex gap-2">
-            <div className="border rounded-md flex overflow-hidden">
-              <Button
-                variant={viewMode === "grid" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("grid")}
-                className="rounded-none"
-              >
-                Grid
-              </Button>
-              <Button
-                variant={viewMode === "mindmap" ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setViewMode("mindmap")}
-                className="rounded-none"
-              >
-                Mind Map
-              </Button>
-            </div>
-            <Button variant="outline" onClick={handleShareFolder}>
-              <Share className="h-4 w-4 mr-2" />
-              Share Folder
-            </Button>
-          </div>
-        </div>
-
-        <div className="flex justify-between items-center">
-          <div>
-            <h2 className="text-2xl font-bold">{folder.name}</h2>
-            <p className="text-muted-foreground">
-              {folderLinks.length} {folderLinks.length === 1 ? "link" : "links"}
-            </p>
-          </div>
-
-          <Button onClick={handleAddLink}>
-            <Plus className="h-4 w-4 mr-2" />
-            Add Link to Folder
+          <Button 
+            onClick={() => setIsShareModalOpen(true)}
+            className="w-full sm:w-auto"
+          >
+            <Share className="h-4 w-4 mr-2"/>
+            Share Folder
           </Button>
         </div>
 
-        {folderLinks.length === 0 ? (
-          <div className="text-center py-12 border rounded-lg">
-            <FolderPlus className="h-12 w-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-            <h3 className="text-lg font-medium mb-2">This folder is empty</h3>
-            <p className="text-muted-foreground mb-4">Add links to this folder to organize them.</p>
-            <Button onClick={handleAddLink}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add
-              Add Your First Link
+        <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+          <div className="space-y-1">
+            <h1 className="text-2xl lg:text-3xl font-bold">{folder.name}</h1>
+            <p className="text-muted-foreground">
+              {folder.links.length} {folder.links.length === 1 ? "link" : "links"}
+            </p>
+          </div>
+          <Button 
+            onClick={() => setIsAddModalOpen(true)}
+            className="w-full sm:w-auto"
+            size="lg"
+          >
+            <Plus className="h-4 w-4 mr-2"/>
+            Add New Link
+          </Button>
+        </div>
+
+        {folder.links.length === 0 ? (
+          <div className="border rounded-lg p-8 text-center space-y-4">
+            <div className="h-16 w-16 mx-auto text-muted-foreground opacity-20"/>
+            <h2 className="text-xl font-semibold">Empty Folder</h2>
+            <p className="text-muted-foreground">Start by adding your first link</p>
+            <Button onClick={() => setIsAddModalOpen(true)} size="lg">
+              <Plus className="h-4 w-4 mr-2"/>
+              Add Link
             </Button>
           </div>
-        ) : viewMode === "grid" ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {folderLinks.map((link) => (
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {folder.links.map(link => (
               <LinkCard
                 key={link.id}
                 link={link}
                 onRemove={() => handleRemoveLink(link.id)}
-                onShare={() => handleShareLink(link)}
               />
             ))}
           </div>
-        ) : (
-          <MindMapView links={folderLinks} onRemove={handleRemoveLink} onShare={handleShareLink} />
         )}
 
-        {selectedLink && (
-          <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} link={selectedLink} />
-        )}
-
-        <FolderShareModal
-          isOpen={folderShareModalOpen}
-          onClose={() => setFolderShareModalOpen(false)}
-          folder={folder}
-          links={links}
+        <MultiFolderShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          folders={[{ ...folder, id: folder.id.toString(), links: folder.links.map(link => link.url) }]}
+          links={folder.links.map(({ id, title, url }) => ({ id: id.toString(), title, url }))}
         />
 
-        <AddLinkModal
-          isOpen={isAddModalOpen}
-          onClose={() => setIsAddModalOpen(false)}
-          onAdd={handleAddNewLink}
-          folderId={folder.id}
-        />
+<AddLinkModal
+  isOpen={isAddModalOpen}
+  onClose={() => setIsAddModalOpen(false)}
+  onAdd={handleAddNewLink}
+  folderId={folder.id.toString()}
+  loading={isLoading}
+/>
       </div>
     </div>
   )
 }
 
-function LinkCard({ link, onRemove, onShare }: { link: Link; onRemove: () => void; onShare: () => void }) {
+function LinkCard({ link, onRemove }: { link: Link; onRemove: () => void }) {
+  const displayTags = link.tags?.map(t => typeof t === 'object' ? t.name : t) || []
   return (
-    <Card className="h-full">
-      <CardHeader className="p-3 pb-1">
-        <div className="flex justify-between items-start">
-          <CardTitle className="text-base truncate" title={link.title}>
+    <Card className="h-full flex flex-col hover:shadow-lg transition-shadow group">
+      <CardHeader className="p-4 pb-0">
+        <div className="flex justify-between items-start gap-2">
+          <CardTitle className="text-lg font-semibold truncate" title={link.title}>
             {link.title}
           </CardTitle>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
-                <MoreHorizontal className="h-4 w-4" />
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 ml-2 shrink-0 hover:bg-accent/50"
+                onClick={e => e.preventDefault()}
+              >
+                <MoreHorizontal className="h-4 w-4"/>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => window.open(link.url, "_blank")}>
-                <ExternalLink className="h-4 w-4 mr-2" />
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem 
+                onClick={e => {
+                  e.preventDefault()
+                  window.open(link.url, "_blank")
+                }}
+                className="cursor-pointer"
+              >
+                <ExternalLink className="h-4 w-4 mr-2"/>
                 Open Link
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onShare}>
-                <Share className="h-4 w-4 mr-2" />
-                Share Link
-              </DropdownMenuItem>
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onRemove}>
-                <Trash2 className="h-4 w-4 mr-2" />
-                Remove from Folder
+              <DropdownMenuItem
+                onClick={e => {
+                  e.preventDefault()
+                  onRemove()
+                }}
+                className="text-destructive cursor-pointer focus:text-destructive"
+              >
+                <Trash2 className="h-4 w-4 mr-2"/>
+                Remove
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <CardDescription className="truncate text-xs" title={link.url}>
+      </CardHeader>
+
+      <CardContent className="p-4 flex-1">
+        <div className="space-y-2">
           <a
             href={link.url}
             target="_blank"
-            rel="noopener noreferrer"
-            className="text-blue-500 hover:underline flex items-center gap-1"
+            rel="noopener"
+            className="inline-flex items-center text-blue-600 dark:text-blue-400 hover:underline text-sm"
           >
             {new URL(link.url).hostname}
-            <ExternalLink className="h-3 w-3" />
+            <ExternalLink className="h-3 w-3 ml-1"/>
           </a>
-        </CardDescription>
-      </CardHeader>
+          {link.description && (
+            <p className="text-muted-foreground text-sm line-clamp-3">
+              {link.description}
+            </p>
+          )}
+        </div>
+      </CardContent>
 
-      {link.description && (
-        <CardContent className="p-3 pt-0 pb-1">
-          <p className="text-xs text-muted-foreground line-clamp-2">{link.description}</p>
-        </CardContent>
+      <CardFooter className="p-4 pt-0 flex flex-wrap gap-2">
+      <Badge variant="secondary" className="text-xs">
+        {link.category}
+      </Badge>
+      {displayTags.slice(0, 3).map(tag => (
+        <Badge key={tag} variant="outline" className="text-xs">
+          {tag}
+        </Badge>
+      ))}
+      {displayTags.length > 3 && (
+        <Badge variant="outline" className="text-xs">
+          +{displayTags.length - 3}
+        </Badge>
       )}
-
-      <CardFooter className="p-3 pt-1 flex flex-wrap gap-1">
-        <Badge variant="outline">{link.category}</Badge>
-        {link.tags.slice(0, 2).map((tag) => (
-          <Badge key={tag} variant="secondary" className="text-xs">
-            {tag}
-          </Badge>
-        ))}
-        {link.tags.length > 2 && (
-          <Badge variant="outline" className="text-xs">
-            +{link.tags.length - 2}
-          </Badge>
-        )}
-      </CardFooter>
+    </CardFooter>
     </Card>
   )
 }
-
-function MindMapView({ links, onRemove, onShare }: { links: Link[], onRemove: (id: string) => void, onShare: (link: Link) => void }) {
-  const [selectedNode, setSelectedNode] = useState<Link | null>(null)
-  const [shareModalOpen, setShareModalOpen] = useState(false)
-
-  // Find connections between links based on shared tags
-  const connections: { source: string; target: string; commonTags: string[] }[] = []
-  links.forEach((source, i) => {
-    links.slice(i + 1).forEach((target) => {
-      const commonTags = source.tags.filter((tag) => target.tags.includes(tag))
-      if (commonTags.length > 0) {
-        connections.push({
-          source: source.id,
-          target: target.id,
-          commonTags,
-        })
-      }
-    })
-  })
-
-  interface Connection {
-    source: string;
-    target: string;
-    commonTags: string[];
-  }
-
-  interface MindMapViewProps {
-    links: Link[];
-    onRemove: (id: string) => void;
-    onShare: (link: Link) => void;
-  }
-
-  interface LinkCardProps {
-    link: Link;
-    onRemove: () => void;
-    onShare: () => void;
-  }
-
-  interface HandleNodeClick {
-    (link: Link): void;
-  }
-
-  const handleNodeClick: HandleNodeClick = (link) => {
-    setSelectedNode(link);
-  };
-
-  interface HandleShareLink {
-    (link: Link): void;
-  }
-
-  const handleShareLink: HandleShareLink = (link) => {
-    onShare(link);
-  }
-
-  return (
-    <div className="h-[600px] flex flex-col">
-      <div className="flex-1 relative border rounded-lg overflow-hidden bg-gradient-to-b from-background to-muted/30">
-        <svg className="w-full h-full">
-          {/* Center node */}
-          <g transform={`translate(${400}, ${300})`} className="cursor-pointer">
-            <circle
-              r={40}
-              fill={`url(#gradient-other)`}
-              filter="url(#drop-shadow)"
-              className="transition-all duration-300"
-            />
-            <text textAnchor="middle" dy=".3em" fill="white" fontSize="14" fontWeight="bold" className="select-none">
-              {links.length} Links
-            </text>
-          </g>
-
-          {/* Draw connections from center to nodes */}
-          {links.map((link, index) => {
-            // Calculate position in a circle around the center
-            const angle = (index / links.length) * 2 * Math.PI
-            const radius = 200
-            const x = 400 + radius * Math.cos(angle)
-            const y = 300 + radius * Math.sin(angle)
-
-            return (
-              <g key={`node-${link.id}`}>
-                <line
-                  x1={400}
-                  y1={300}
-                  x2={x}
-                  y2={y}
-                  stroke="rgba(180, 180, 180, 0.3)"
-                  strokeWidth={1.5}
-                  strokeDasharray="5,5"
-                />
-                <g transform={`translate(${x}, ${y})`} onClick={() => handleNodeClick(link)} className="cursor-pointer">
-                  <rect
-                    x={-70}
-                    y={-30}
-                    width={140}
-                    height={60}
-                    rx={12}
-                    fill={`url(#gradient-${link.category.toLowerCase()})`}
-                    className="transition-all duration-300"
-                  />
-                  <text
-                    textAnchor="middle"
-                    dy="-0.5em"
-                    fill="white"
-                    fontSize="13"
-                    fontWeight="bold"
-                    className="select-none"
-                  >
-                    {link.title.length > 15 ? link.title.substring(0, 15) + "..." : link.title}
-                  </text>
-                  <text
-                    textAnchor="middle"
-                    dy="1.5em"
-                    fill="rgba(255,255,255,0.8)"
-                    fontSize="10"
-                    className="select-none"
-                  >
-                    {link.category}
-                  </text>
-                </g>
-              </g>
-            )
-          })}
-
-          {/* Draw connections between related nodes */}
-          {connections.map((connection, index) => {
-            const sourceIndex = links.findIndex((link) => link.id === connection.source)
-            const targetIndex = links.findIndex((link) => link.id === connection.target)
-
-            if (sourceIndex === -1 || targetIndex === -1) return null
-
-            const sourceAngle = (sourceIndex / links.length) * 2 * Math.PI
-            const targetAngle = (targetIndex / links.length) * 2 * Math.PI
-            const radius = 200
-
-            const x1 = 400 + radius * Math.cos(sourceAngle)
-            const y1 = 300 + radius * Math.sin(sourceAngle)
-            const x2 = 400 + radius * Math.cos(targetAngle)
-            const y2 = 300 + radius * Math.sin(targetAngle)
-
-            return (
-              <g key={`connection-${index}`}>
-                <line
-                  x1={x1}
-                  y1={y1}
-                  x2={x2}
-                  y2={y2}
-                  stroke="rgba(100, 100, 100, 0.2)"
-                  strokeWidth={1}
-                  strokeDasharray="3,3"
-                />
-                <g transform={`translate(${(x1 + x2) / 2}, ${(y1 + y2) / 2})`}>
-                  <circle r={3} fill="#888" />
-                </g>
-              </g>
-            )
-          })}
-
-          {/* Define gradients for categories */}
-          <defs>
-            {[
-              "Development",
-              "Design",
-              "Marketing",
-              "Business",
-              "Education",
-              "Entertainment",
-              "News",
-              "Social",
-              "Productivity",
-              "Hosting",
-              "Other",
-            ].map((category) => (
-              <linearGradient
-                key={category}
-                id={`gradient-${category.toLowerCase()}`}
-                x1="0%"
-                y1="0%"
-                x2="100%"
-                y2="100%"
-              >
-                <stop offset="0%" stopColor={getCategoryColor(category)} />
-                <stop offset="100%" stopColor={adjustColorBrightness(getCategoryColor(category), -20)} />
-              </linearGradient>
-            ))}
-
-            {/* Define drop shadow filter */}
-            <filter id="drop-shadow" x="-20%" y="-20%" width="140%" height="140%">
-              <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
-              <feOffset dx="2" dy="2" result="offsetblur" />
-              <feComponentTransfer>
-                <feFuncA type="linear" slope="0.2" />
-              </feComponentTransfer>
-              <feMerge>
-                <feMergeNode />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-        </svg>
-
-        {/* Legend */}
-        <div className="absolute bottom-4 right-4 bg-background/90 p-3 rounded-md border shadow-md">
-          <div className="text-sm font-medium mb-2">Categories:</div>
-          <div className="grid grid-cols-2 gap-x-4 gap-y-2">
-            {["Development", "Design", "Hosting", "Marketing", "Business", "Other"].map((category) => (
-              <div key={category} className="flex items-center gap-2">
-                <div
-                  className="w-4 h-4 rounded-full"
-                  style={{
-                    background: `linear-gradient(135deg, ${getCategoryColor(category)}, ${adjustColorBrightness(getCategoryColor(category), -20)})`,
-                  }}
-                />
-                <span className="text-xs">{category}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* Selected node details */}
-      {selectedNode && (
-        <Card
-          className="mt-4 relative shadow-lg border-t-4"
-          style={{ borderTopColor: getCategoryColor(selectedNode.category) }}
-        >
-          <Button variant="ghost" size="icon" className="absolute right-2 top-2" onClick={() => setSelectedNode(null)}>
-            <Trash2 className="h-4 w-4" />
-          </Button>
-
-          <CardHeader className="pb-2">
-            <CardTitle>{selectedNode.title}</CardTitle>
-            <CardDescription>
-              <a
-                href={selectedNode.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-500 hover:underline flex items-center gap-1"
-              >
-                {selectedNode.url}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="pb-2">
-            {selectedNode.description && <p className="text-sm text-muted-foreground">{selectedNode.description}</p>}
-          </CardContent>
-
-          <CardFooter className="flex justify-between items-center">
-            <div className="flex flex-wrap gap-1">
-              <Badge variant="outline">{selectedNode.category}</Badge>
-              {selectedNode.tags.map((tag) => (
-                <Badge key={tag} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => handleShareLink(selectedNode)}>
-                <Share className="h-4 w-4 mr-2" />
-                Share
-              </Button>
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={() => {
-                  onRemove(selectedNode.id)
-                  setSelectedNode(null)
-                }}
-              >
-                <Trash2 className="h-4 w-4 mr-2" />
-                Remove
-              </Button>
-            </div>
-          </CardFooter>
-        </Card>
-      )}
-
-      {shareModalOpen && selectedNode && (
-        <ShareModal isOpen={shareModalOpen} onClose={() => setShareModalOpen(false)} link={selectedNode} />
-      )}
-    </div>
-  )
-}
-
-// Helper function to get a color based on category
-interface CategoryColors {
-  [key: string]: string;
-}
-
-function getCategoryColor(category: string): string {
-  const colors: CategoryColors = {
-    Development: "#3b82f6", // blue
-    Design: "#ec4899", // pink
-    Marketing: "#f97316", // orange
-    Business: "#10b981", // emerald
-    Education: "#8b5cf6", // violet
-    Entertainment: "#f43f5e", // rose
-    News: "#64748b", // slate
-    Social: "#06b6d4", // cyan
-    Productivity: "#eab308", // yellow
-    Hosting: "#6366f1", // indigo
-    Other: "#6b7280", // gray
-  };
-
-  return colors[category] || colors["Other"];
-}
-
-// Helper function to adjust color brightness
-function adjustColorBrightness(hex: string, percent: number) {
-  // Convert hex to RGB
-  let r = Number.parseInt(hex.substring(1, 3), 16)
-  let g = Number.parseInt(hex.substring(3, 5), 16)
-  let b = Number.parseInt(hex.substring(5, 7), 16)
-
-  // Adjust brightness
-  r = Math.max(0, Math.min(255, r + percent))
-  g = Math.max(0, Math.min(255, g + percent))
-  b = Math.max(0, Math.min(255, b + percent))
-
-  // Convert back to hex
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`
-}
-
