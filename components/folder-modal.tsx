@@ -9,7 +9,7 @@ import { Folder, FolderPlus } from "lucide-react"
 import { Checkbox } from "@/components/ui/checkbox"
 
 interface Folder {
-  id: string;
+  id: number; 
   name: string;
   links: any[];
   dateCreated: string;
@@ -21,6 +21,7 @@ interface FolderModalProps {
   onClose: () => void;
   folder?: Folder | null;
   onSave: (folderData: Folder, addLinksAfter: boolean) => void;
+  loading: boolean;
 }
 export default function FolderModal({ isOpen, onClose, folder = null, onSave }: FolderModalProps) {
   const [folderName, setFolderName] = useState("")
@@ -51,7 +52,7 @@ export default function FolderModal({ isOpen, onClose, folder = null, onSave }: 
       // Create new folder
       onSave(
         {
-          id: Date.now().toString(),
+          id: Date.now(),
           name: folderName,
           links: [],
           dateCreated: new Date().toISOString(),

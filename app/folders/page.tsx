@@ -30,6 +30,7 @@ interface Link {
   category: string
   createdAt: string
   dateCreated: string
+  description: string
   userId: string
   folderId?: number
 }
@@ -38,6 +39,7 @@ interface Folder {
   id: number
   name: string
   createdAt: string
+  dateCreated: string
   userId: string
   links: Link[]
 }
