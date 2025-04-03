@@ -118,7 +118,7 @@ export default function Home() {
   const handleSaveFolder = async (folderData: { name: string }) => {
     try {
       setIsProcessing(true)
-      const url = editingFolder ? `/api/folders/[id]${editingFolder.id}` : '/api/folders'
+      const url = editingFolder ? `/api/folders/${editingFolder.id}` : '/api/folders'
       const method = editingFolder ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
@@ -151,7 +151,7 @@ export default function Home() {
   const handleDeleteFolder = async (folderId: number) => {
     try {
       setIsProcessing(true)
-      const response = await fetch(`/api/folders/[id]${folderId}`, {
+      const response = await fetch(`/api/folders/${folderId}`, {
         method: 'DELETE'
       })
 
@@ -159,7 +159,7 @@ export default function Home() {
       
       setFolders(prev => prev.filter(f => f.id !== folderId))
       toast.success('Folder deleted successfully')
-    } catch (error) {
+    } catch (error) {   
       toast.error('Failed to delete folder')
     } finally {
       setIsProcessing(false)
@@ -327,9 +327,10 @@ export default function Home() {
       {isMobile && (
         <Button
           className="fixed bottom-6 right-6 rounded-full w-14 h-14 shadow-lg"
-          onClick={() => setIsAddModalOpen(true)}
+          onClick={() =>   setIsFolderModalOpen(true)}
         >
           <Plus className="h-6 w-6" />
+          
         </Button>
       )}
 

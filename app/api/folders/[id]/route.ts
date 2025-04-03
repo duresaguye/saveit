@@ -40,17 +40,32 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
   
 }
 
-export async function PUT(req: NextRequest) {
+export async function PUT(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { id, name, linkIds } = await req.json()
+    const { name, linkIds } = await req.json()
     const session = await auth.api.getSession({ headers: headers() })
 
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+
+    const existingFolder = await prisma.folder.findUnique({
+      where: { 
+        id: Number(params.id),
+        userId: session.user.id 
+      }
+    })
+
+    if (!existingFolder) {
+      return NextResponse.json({ error: "Folder not found" }, { status: 404 })
+    }
+
     const folder = await prisma.folder.update({
-      where: { id: Number(id), userId: session.user.id },
+      where: { 
+        id: Number(params.id), 
+        userId: session.user.id 
+      },
       data: {
         name,
         links: {
@@ -70,10 +85,8 @@ export async function PUT(req: NextRequest) {
   }
 }
 
-export async function DELETE(req: NextRequest) {
+export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
-    const { searchParams } = new URL(req.url)
-    const id = searchParams.get('id')
     const session = await auth.api.getSession({ headers: headers() })
 
     if (!session?.user?.id) {
@@ -81,15 +94,18 @@ export async function DELETE(req: NextRequest) {
     }
 
     await prisma.folder.delete({
-      where: { id: Number(id), userId: session.user.id }
+      where: { 
+        id: Number(params.id), 
+        userId: session.user.id 
+      }
     })
 
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error(error)
-      return NextResponse.json(
-        { message: 'Error deleting folder' }, 
-        { status: 500 }
-      )
-    }
+    return NextResponse.json(
+      { message: 'Error deleting folder' }, 
+      { status: 500 }
+    )
   }
+}
