@@ -7,9 +7,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Copy, Mail, Twitter, Facebook, Linkedin, Folder, Users } from "lucide-react"
+import { Copy, Mail, Twitter, Linkedin, Folder, Users, Send } from "lucide-react"
 import { toast } from "sonner"
-
 import { Card } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
@@ -30,8 +29,6 @@ export default function MultiFolderShareModal({ isOpen, onClose, folders, links 
   const [message, setMessage] = useState("")
   const [collectionName, setCollectionName] = useState(`Folder Collection (${new Date().toLocaleDateString()})`)
 
-
-  // Add state for groups
   interface Group {
     id: string;
     name: string;
@@ -41,7 +38,6 @@ export default function MultiFolderShareModal({ isOpen, onClose, folders, links 
   const [groups, setGroups] = useState<Group[]>([])
   const [selectedGroups, setSelectedGroups] = useState<string[]>([])
 
-  // Load groups from localStorage
   useEffect(() => {
     const savedGroups = localStorage.getItem("chromo-groups")
     if (savedGroups) {
@@ -49,7 +45,6 @@ export default function MultiFolderShareModal({ isOpen, onClose, folders, links 
     }
   }, [])
 
-  // Get all links from all selected folders
   const getAllFolderLinks = () => {
     const allLinkIds = folders.flatMap((folder) => folder.links)
     const uniqueLinkIds = [...new Set(allLinkIds)]
@@ -58,38 +53,27 @@ export default function MultiFolderShareModal({ isOpen, onClose, folders, links 
 
   const folderLinks = getAllFolderLinks()
 
-  // Generate a shareable link for the folder collection
   const generateShareableLink = () => {
-    // In a real app, this would create a unique link with proper authentication
-    // For this demo, we'll just create a dummy link
     const baseUrl = window.location.origin
-    const shareId = Math.random().toString(36).substring(2, 10)
     const folderIds = folders.map((folder) => folder.id).join(",")
-    return `${baseUrl}/shared/folders/${shareId}?ids=${folderIds}&name=${encodeURIComponent(collectionName)}${includeMetadata ? "&meta=1" : ""}${expirationDays ? `&exp=${expirationDays}` : ""}`
+    return `${baseUrl}/shared/folders/${Date.now()}?ids=${folderIds}`
   }
 
   const shareableLink = generateShareableLink()
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(shareableLink)
-    toast("The shareable link has been copied to your clipboard.",
-    )
+    toast("The shareable link has been copied to your clipboard.")
   }
 
-  // Share via email
   const shareViaEmail = () => {
-    // In a real app, this would send an email through a backend service
-    // For this demo, we'll just open the default email client
     const subject = `Check out these folders: ${collectionName}`
-
-    // Create a list of folders with their links
     const foldersList = folders
       .map((folder, index) => {
         const folderLinks = folder.links
           .map((id) => links.find((link) => link.id === id))
           .filter(Boolean)
           .map((link) => link ? `   - ${link.title}: ${link.url}` : "")
-          .filter(Boolean)
           .join("\n")
 
         return `${index + 1}. ${folder.name} (${folder.links.length} links):\n${folderLinks}`
@@ -108,36 +92,27 @@ You can view all these folders at once here: ${shareableLink}
 Shared via Chromo Extensions`
 
     window.open(`mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`)
-
-    toast( "Your default email client has been opened with all folders in the collection.",
-    )
+    toast("Your default email client has been opened with all folders in the collection.")
   }
 
-  // Share with groups
   const shareWithGroups = () => {
     if (selectedGroups.length === 0) {
-      toast("Please select at least one group to share with.",
-       )
+      toast("Please select at least one group to share with.")
       return
     }
 
-    // Get all email addresses from selected groups
     const recipients = selectedGroups.flatMap((groupId) => {
       const group = groups.find((g) => g.id === groupId)
       return group ? group.members.map((member) => member.email) : []
     })
 
-    // Remove duplicates
     const uniqueRecipients = [...new Set(recipients)]
-
-    // Create a list of folders with their links
     const foldersList = folders
       .map((folder, index) => {
         const folderLinks = folder.links
           .map((id) => links.find((link) => link.id === id))
           .filter(Boolean)
           .map((link) => link ? `   - ${link.title}: ${link.url}` : "")
-          .filter(Boolean)
           .join("\n")
 
         return `${index + 1}. ${folder.name} (${folder.links.length} links):\n${folderLinks}`
@@ -160,40 +135,30 @@ Shared via Chromo Extensions`
       `mailto:?bcc=${uniqueRecipients.join(",")}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
     )
 
-    toast(`Sharing with ${uniqueRecipients.length} recipients.`,
+    toast(`Sharing with ${uniqueRecipients.length} recipients.`)
+  }
+
+  const handleGroupSelection = (groupId: string) => {
+    setSelectedGroups((prev) => 
+      prev.includes(groupId) ? prev.filter((id) => id !== groupId) : [...prev, groupId]
     )
   }
 
-  interface HandleGroupSelectionProps {
-    groupId: string;
-  }
-
-  const handleGroupSelection = ({ groupId }: HandleGroupSelectionProps) => {
-    setSelectedGroups((prev) => {
-      if (prev.includes(groupId)) {
-        return prev.filter((id) => id !== groupId);
-      } else {
-        return [...prev, groupId];
-      }
-    });
-  };
-
-  // Share via social media
   interface ShareViaSocialProps {
-    platform: "twitter" | "facebook" | "linkedin";
+    platform: "twitter" | "telegram" | "linkedin";
   }
 
   const shareViaSocial = ({ platform }: ShareViaSocialProps) => {
     let url: string;
     const text = `Check out these folders: ${collectionName}`;
+    const fullMessage = `${text} - ${shareableLink}`;
 
-    // For social sharing, we'll just share the collection link
     switch (platform) {
       case "twitter":
         url = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareableLink)}`;
         break;
-      case "facebook":
-        url = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareableLink)}`;
+      case "telegram":
+        url = `https://t.me/share/url?url=${encodeURIComponent(shareableLink)}&text=${encodeURIComponent(fullMessage)}`;
         break;
       case "linkedin":
         url = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareableLink)}`;
@@ -203,9 +168,7 @@ Shared via Chromo Extensions`
     }
 
     window.open(url, "_blank", "width=600,height=400");
-
-    toast(`Opening ${platform} to share your folder collection.`,
-    );
+    toast(`Opening ${platform} to share your folder collection.`);
   };
 
   return (
@@ -281,7 +244,11 @@ Shared via Chromo Extensions`
 
             <div className="space-y-2">
               <div className="flex items-center space-x-2">
-                <Checkbox id="include-metadata" checked={includeMetadata} onCheckedChange={(checked) => setIncludeMetadata(checked === true)} />
+                <Checkbox 
+                  id="include-metadata" 
+                  checked={includeMetadata} 
+                  onCheckedChange={(checked) => setIncludeMetadata(checked === true)} 
+                />
                 <Label htmlFor="include-metadata">Include tags and descriptions</Label>
               </div>
             </div>
@@ -386,7 +353,7 @@ Shared via Chromo Extensions`
                         <Checkbox
                           id={`group-${group.id}`}
                           checked={selectedGroups.includes(group.id)}
-                          onCheckedChange={() => handleGroupSelection({ groupId: group.id })}
+                          onCheckedChange={() => handleGroupSelection(group.id)}
                         />
                         <div>
                           <Label htmlFor={`group-${group.id}`} className="font-medium cursor-pointer">
@@ -455,10 +422,10 @@ Shared via Chromo Extensions`
               <Button
                 variant="outline"
                 className="flex flex-col items-center justify-center h-24 space-y-2"
-                onClick={() => shareViaSocial({ platform: "facebook" })}
+                onClick={() => shareViaSocial({ platform: "telegram" })}
               >
-                <Facebook className="h-8 w-8" />
-                <span>Facebook</span>
+                <Send className="h-8 w-8" />
+                <span>Telegram</span>
               </Button>
 
               <Button
@@ -506,4 +473,3 @@ Shared via Chromo Extensions`
     </Dialog>
   )
 }
-

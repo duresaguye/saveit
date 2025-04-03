@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useSearchParams } from "next/navigation"
+import { useSearchParams } from "next/navigation"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -9,170 +9,87 @@ import { ExternalLink, ArrowLeft, Clock, Save, Folder } from "lucide-react"
 import { toast } from "sonner"
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 
-type Folder = {
-  id: string
+interface FolderType {
+  id: number
   name: string
-  links: string[]
+  links: LinkType[]
 }
 
-interface Link {
-  id: string
+interface LinkType {
+  id: number
   title: string
   url: string
   description?: string
   category: string
-  tags: string[]
-  dateAdded: string
+  tags?: string[] 
+  createdAt: string
 }
 
 export default function SharedFoldersPage() {
-  const params = useParams()
   const searchParams = useSearchParams()
-
-  const [folders, setFolders] = useState<Folder[]>([])
-  const [allLinks, setAllLinks] = useState<Link[]>([])
+  const [folders, setFolders] = useState<FolderType[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [collectionName, setCollectionName] = useState("Shared Folders")
   const [activeTab, setActiveTab] = useState("folders")
 
   useEffect(() => {
-    // In a real app, this would fetch the shared folders from an API
-    // For this demo, we'll simulate loading from localStorage
     const fetchSharedFolders = async () => {
       try {
         setLoading(true)
-
-        // Simulate API call delay
-        await new Promise((resolve) => setTimeout(resolve, 1000))
-
-        // Get folder IDs from the URL
-        const folderIds = searchParams.get("ids")?.split(",") || []
-
-        // Get collection name from URL
-        const urlCollectionName = searchParams.get("name")
-        if (urlCollectionName) {
-          setCollectionName(decodeURIComponent(urlCollectionName))
+        const folderIds = searchParams.get("ids")?.split(",").map(Number) || []
+        
+        if (!folderIds.length) {
+          throw new Error("No folders specified in the URL")
         }
 
-        if (folderIds.length === 0) {
-          throw new Error("No folders found")
+        const response = await fetch(`/api/shared/folders?ids=${folderIds.join(",")}`)
+        
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || "Failed to fetch folders")
         }
 
-        // Get folders from localStorage
-        const savedFolders = localStorage.getItem("chromo-folders")
-        if (!savedFolders) {
-          throw new Error("No folders found")
+        const data: FolderType[] = await response.json()
+        
+        if (!data.length) {
+          throw new Error("No folders found with the specified IDs")
         }
 
-        const allFolders = JSON.parse(savedFolders)
-        const foundFolders: Folder[] = allFolders.filter((folder: Folder) => folderIds.includes(folder.id))
+        setFolders(data)
+        setCollectionName(searchParams.get("name") || `Shared Folders (${data.length})`)
 
-        if (foundFolders.length === 0) {
-          throw new Error("Folders not found")
-        }
-
-        setFolders(foundFolders)
-
-        // Get all links from localStorage
-        const savedLinks = localStorage.getItem("chromo-links")
-        if (savedLinks) {
-          const links = JSON.parse(savedLinks)
-          setAllLinks(links)
-        }
       } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message)
-        } else {
-          setError(String(err))
-        }
-        toast(err instanceof Error ? err.message : String(err))
+        setError(err instanceof Error ? err.message : "Failed to load folders")
+        toast.error(err instanceof Error ? err.message : "Failed to load folders")
       } finally {
         setLoading(false)
       }
     }
 
     fetchSharedFolders()
-  }, [params.id, searchParams, toast])
+  }, [searchParams])
 
-  const getFolderLinks = (folderId: string): Link[] => {
-    const folder = folders.find((f) => f.id === folderId)
-    if (!folder) return []
-
-    return folder.links.map((linkId) => allLinks.find((link: Link) => link.id === linkId)).filter((link): link is Link => link !== undefined)
-  }
-
-  const getAllFolderLinks = () => {
-    const allLinkIds = folders.flatMap((folder) => folder.links)
-    const uniqueLinkIds = [...new Set(allLinkIds)]
-    return uniqueLinkIds.map((id) => allLinks.find((link) => link.id === id)).filter(Boolean)
-  }
-
-  const saveAllToMyCollection = () => {
+  const saveAllToMyCollection = async () => {
     try {
-      // Get existing links
-      const savedLinks = localStorage.getItem("chromo-links")
-      const existingLinks = savedLinks ? JSON.parse(savedLinks) : []
-
-      // Track how many new links were added
-      let newLinksCount = 0
-      const newLinkIds: { [key: string]: string } = {}
-
-      // Add each link that doesn't already exist
-      getAllFolderLinks().forEach((link) => {
-        if (!link) return
-
-        // Check if link already exists
-        const exists: boolean = existingLinks.some((existingLink: Link) => existingLink.url === link.url)
-
-        if (!exists) {
-          // Add the link with a new ID
-          const newLinkId = Date.now().toString() + Math.random().toString(36).substring(2, 10)
-          const newLink = {
-            ...link,
-            id: newLinkId,
-            dateAdded: new Date().toISOString(),
-          }
-
-          existingLinks.push(newLink)
-          newLinkIds[link.id] = newLinkId
-          newLinksCount++
-        } else {
-          // If the link already exists, find its ID
-          const existingLink: Link | undefined = existingLinks.find((existingLink: Link) => existingLink.url === link.url)
-          if (existingLink) {
-            newLinkIds[link.id] = existingLink.id
-          }
-        }
+      const response = await fetch("/api/folders/save-shared", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          folderIds: folders.map(f => f.id),
+          collectionName 
+        })
       })
 
-      localStorage.setItem("chromo-links", JSON.stringify(existingLinks))
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || "Failed to save folders")
+      }
 
-      // Create new folders with these links
-      const savedFolders = localStorage.getItem("chromo-folders")
-      const existingFolders = savedFolders ? JSON.parse(savedFolders) : []
-
-      // Create new folders with the same names as the shared folders
-      folders.forEach((folder) => {
-        const newFolderLinks = folder.links.map((linkId) => newLinkIds[linkId]).filter(Boolean)
-
-        if (newFolderLinks.length > 0) {
-          const newFolder = {
-            id: Date.now().toString() + Math.random().toString(36).substring(2, 10),
-            name: folder.name,
-            links: newFolderLinks,
-            dateCreated: new Date().toISOString(),
-          }
-
-          existingFolders.push(newFolder)
-        }
-      })
-
-      localStorage.setItem("chromo-folders", JSON.stringify(existingFolders))
-
-      toast(`Saved ${newLinksCount} new links to ${folders.length} folders`)
+      const result = await response.json()
+      toast.success(`Saved ${result.savedFolders} folders with ${result.savedLinks} links to your collection`)
     } catch (err) {
-      toast("Failed to save folders")
+      toast.error(err instanceof Error ? err.message : "Failed to save collection")
     }
   }
 
@@ -187,13 +104,13 @@ export default function SharedFoldersPage() {
     )
   }
 
-  if (error) {
+  if (error || !folders.length) {
     return (
       <div className="container mx-auto py-8 flex items-center justify-center min-h-screen">
         <div className="text-center">
           <h1 className="text-2xl font-bold mb-4">Folders Not Found</h1>
           <p className="text-muted-foreground mb-6">
-            The shared folders you're looking for don't exist or have expired.
+            {error || "The requested folders could not be found"}
           </p>
           <Button onClick={() => (window.location.href = "/")}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -203,6 +120,8 @@ export default function SharedFoldersPage() {
       </div>
     )
   }
+
+  const totalLinks = folders.reduce((acc, folder) => acc + folder.links.length, 0)
 
   return (
     <div className="container mx-auto py-8">
@@ -220,7 +139,7 @@ export default function SharedFoldersPage() {
             {collectionName}
           </h1>
           <p className="text-muted-foreground">
-            Shared collection with {folders.length} folders and {getAllFolderLinks().length} links
+            {folders.length} folders containing {totalLinks} links
           </p>
           <div className="flex justify-center mt-2">
             <Badge variant="outline" className="text-xs">
@@ -244,7 +163,7 @@ export default function SharedFoldersPage() {
             </TabsTrigger>
             <TabsTrigger value="links" className="flex items-center gap-2">
               <ExternalLink className="h-4 w-4" />
-              All Links ({getAllFolderLinks().length})
+              All Links ({totalLinks})
             </TabsTrigger>
           </TabsList>
 
@@ -261,54 +180,55 @@ export default function SharedFoldersPage() {
                   </div>
 
                   <div className="space-y-4">
-                    {getFolderLinks(folder.id).map((link) => (
-                      link && (
-                        <Card key={link.id} className="shadow-md">
-                          <CardHeader>
-                            <CardTitle className="text-xl">{link.title}</CardTitle>
-                            <CardDescription>
-                              <a
-                                href={link.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-500 hover:underline flex items-center gap-1"
-                              >
-                                {link.url}
-                                <ExternalLink className="h-3 w-3" />
-                              </a>
-                            </CardDescription>
-                          </CardHeader>
+                    {folder.links.map((link) => (
+                      <Card key={link.id} className="shadow-md">
+                        <CardHeader>
+                          <CardTitle className="text-xl">{link.title}</CardTitle>
+                          <CardDescription>
+                            <a
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline flex items-center gap-1"
+                            >
+                              {link.url}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </CardDescription>
+                        </CardHeader>
 
-                          {link.description && (
-                            <CardContent>
-                              <p className="text-muted-foreground">{link.description}</p>
-                            </CardContent>
-                          )}
+                        {link.description && (
+                          <CardContent>
+                            <p className="text-muted-foreground">{link.description}</p>
+                          </CardContent>
+                        )}
 
-                          <CardFooter className="flex flex-col items-start gap-4">
-                            <div className="flex flex-wrap gap-1">
-                              <Badge variant="outline">{link.category}</Badge>
-                              {link.tags.map((tag) => (
-                                <Badge key={tag} variant="secondary">
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
+                        <CardFooter className="flex flex-col items-start gap-4">
+                        <div className="flex flex-wrap gap-1">
+  <Badge variant="outline">{link.category}</Badge>
+  {(link.tags || []).map((tag) => (
+    <Badge key={tag} variant="secondary">
+      {tag}
+    </Badge>
+  ))}
+</div>
 
-                            <div className="flex items-center text-sm text-muted-foreground">
-                              <Clock className="h-4 w-4 mr-1" />
-                              Added on {new Date(link.dateAdded).toLocaleDateString()}
-                            </div>
+                          <div className="flex items-center text-sm text-muted-foreground">
+                            <Clock className="h-4 w-4 mr-1" />
+                            Added on {new Date(link.createdAt).toLocaleDateString()}
+                          </div>
 
-                            <div className="w-full flex justify-end pt-2 border-t">
-                              <Button variant="outline" onClick={() => window.open(link.url, "_blank")}>
-                                <ExternalLink className="h-4 w-4 mr-2" />
-                                Visit Link
-                              </Button>
-                            </div>
-                          </CardFooter>
-                        </Card>
-                      )
+                          <div className="w-full flex justify-end pt-2 border-t">
+                            <Button 
+                              variant="outline" 
+                              onClick={() => window.open(link.url, "_blank")}
+                            >
+                              <ExternalLink className="h-4 w-4 mr-2" />
+                              Visit Link
+                            </Button>
+                          </div>
+                        </CardFooter>
+                      </Card>
                     ))}
                   </div>
                 </div>
@@ -318,54 +238,55 @@ export default function SharedFoldersPage() {
 
           <TabsContent value="links" className="mt-4">
             <div className="space-y-4">
-              {getAllFolderLinks().map((link) => (
-                link && (
-                  <Card key={link.id} className="shadow-md">
-                    <CardHeader>
-                      <CardTitle className="text-xl">{link.title}</CardTitle>
-                      <CardDescription>
-                        <a
-                          href={link.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-500 hover:underline flex items-center gap-1"
-                        >
-                          {link.url}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </CardDescription>
-                    </CardHeader>
+              {folders.flatMap(folder => folder.links).map((link) => (
+                <Card key={link.id} className="shadow-md">
+                  <CardHeader>
+                    <CardTitle className="text-xl">{link.title}</CardTitle>
+                    <CardDescription>
+                      <a
+                        href={link.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline flex items-center gap-1"
+                      >
+                        {link.url}
+                        <ExternalLink className="h-3 w-3" />
+                      </a>
+                    </CardDescription>
+                  </CardHeader>
 
-                    {link.description && (
-                      <CardContent>
-                        <p className="text-muted-foreground">{link.description}</p>
-                      </CardContent>
-                    )}
+                  {link.description && (
+                    <CardContent>
+                      <p className="text-muted-foreground">{link.description}</p>
+                    </CardContent>
+                  )}
 
-                    <CardFooter className="flex flex-col items-start gap-4">
-                      <div className="flex flex-wrap gap-1">
-                        <Badge variant="outline">{link.category}</Badge>
-                        {link.tags.map((tag) => (
-                          <Badge key={tag} variant="secondary">
-                            {tag}
-                          </Badge>
-                        ))}
-                      </div>
+                  <CardFooter className="flex flex-col items-start gap-4">
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline">{link.category}</Badge>
+                      {(link.tags ?? []).map((tag) => (
+                        <Badge key={tag} variant="secondary">
+                          {tag}
+                        </Badge>
+                      ))}
+                    </div>
 
-                      <div className="flex items-center text-sm text-muted-foreground">
-                        <Clock className="h-4 w-4 mr-1" />
-                        Added on {new Date(link.dateAdded).toLocaleDateString()}
-                      </div>
+                    <div className="flex items-center text-sm text-muted-foreground">
+                      <Clock className="h-4 w-4 mr-1" />
+                      Added on {new Date(link.createdAt).toLocaleDateString()}
+                    </div>
 
-                      <div className="w-full flex justify-end pt-2 border-t">
-                        <Button variant="outline" onClick={() => window.open(link.url, "_blank")}>
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Visit Link
-                        </Button>
-                      </div>
-                    </CardFooter>
-                  </Card>
-                )
+                    <div className="w-full flex justify-end pt-2 border-t">
+                      <Button 
+                        variant="outline" 
+                        onClick={() => window.open(link.url, "_blank")}
+                      >
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Visit Link
+                      </Button>
+                    </div>
+                  </CardFooter>
+                </Card>
               ))}
             </div>
           </TabsContent>
