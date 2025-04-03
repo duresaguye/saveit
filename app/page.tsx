@@ -9,6 +9,7 @@ import { Navbar } from "@/components/Navbar"
 import { authClient } from "@/utils/auth-client"
 import { useRouter } from "next/navigation"
 import { useEffect as reactUseEffect } from "react";
+import { useTheme } from "next-themes";
 
 
 
@@ -16,6 +17,7 @@ import { useEffect as reactUseEffect } from "react";
 
 export default function LandingPage() {
   const router = useRouter()
+  const { theme } = useTheme();
   
   const { 
     data: session, 
@@ -30,9 +32,18 @@ export default function LandingPage() {
       router.push("/folders")
     }
   }, [session, sessionLoading, router])
+  if (sessionLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+  if (session) return null;
 
   return (
     <div className="flex min-h-screen flex-col">
+      
       <Navbar />
       <main className="flex-1">
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48">
@@ -59,16 +70,15 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex items-center justify-center">
-                <div className="relative h-[350px] w-full md:h-[450px] lg:h-[500px]">
-                  <Image
-                    src="/saveIT.png"
-                    alt="SaveIT Dashboard Preview"
-                  
-                    fill
-                    className="object-contain"
-                    priority
-                  />
-                </div>
+              <div className="relative h-[350px] w-full md:h-[450px] lg:h-[500px]">
+      <Image
+        src={theme === "dark" ? "/saveIT-dark.png" : "/saveIT-light.png"}
+        alt="SaveIT Dashboard Preview"
+        fill
+        className="object-contain"
+        priority
+      />
+    </div>
               </div>
             </div>
           </div>
