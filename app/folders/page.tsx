@@ -61,38 +61,45 @@ export default function Home() {
   const isMobile = useMobile()
 
   useEffect(() => {
-    if (!isPending && !session) {
-      router.push('/login')
+    if (!isPending && session === null) {
+      router.replace('/login') 
     }
   }, [session, isPending, router])
-
   useEffect(() => {
+    if (!session?.user) return;
+    
+    let isMounted = true; 
+    setIsProcessing(true);
+  
     const fetchData = async () => {
-      if (!session?.user) return
-      setIsProcessing(true)
-      
       try {
-        // Fetch folders with their links
-        const foldersRes = await fetch('/api/folders')
-        if (!foldersRes.ok) throw new Error('Failed to fetch folders')
-        const foldersData = await foldersRes.json()
-        setFolders(foldersData)
-
-        // Fetch unorganized links
-        const linksRes = await fetch('/api/links')
-        if (!linksRes.ok) throw new Error('Failed to fetch links')
-        const linksData = await linksRes.json()
-        setLinks(linksData)
+        const [foldersRes, linksRes] = await Promise.all([
+          fetch('/api/folders'),
+          fetch('/api/links')
+        ]);
+  
+        if (!foldersRes.ok || !linksRes.ok) throw new Error('Failed to fetch data');
+  
+        const [foldersData, linksData] = await Promise.all([
+          foldersRes.json(),
+          linksRes.json()
+        ]);
+  
+        if (isMounted) {
+          setFolders(foldersData);
+          setLinks(linksData);
+        }
       } catch (error) {
-        toast.error('Failed to load data')
+        toast.error('Failed to load data');
       } finally {
-        setIsProcessing(false)
+        if (isMounted) setIsProcessing(false);
       }
-    }
-
-    if (session?.user) fetchData()
-  }, [session])
-
+    };
+  
+    fetchData();
+    return () => { isMounted = false }; 
+  }, [session]);
+  
   const addLink = async (newLink: { title: string; url: string; description: string; category: string; tags: string[] }) => {
     try {
       setIsProcessing(true)
@@ -176,11 +183,10 @@ export default function Home() {
   const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
-
-  if (isPending || !session || isProcessing) {
-    return <Loading />
+  if (isPending || (!session && !isPending) || isProcessing) {
+    return <Loading />;
   }
-
+  
   return (
     <main className="flex min-h-screen flex-col">
       <Navbar />

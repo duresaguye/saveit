@@ -29,9 +29,10 @@ export default function LandingPage() {
   
   useEffect(() => {
     if (!sessionLoading && session) {
-      router.push("/folders")
+      router.replace("/folders"); 
     }
-  }, [session, sessionLoading, router])
+  }, [session, sessionLoading, router]);
+  
   if (sessionLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -39,6 +40,8 @@ export default function LandingPage() {
       </div>
     );
   }
+  
+
   if (session) return null;
 
   return (
