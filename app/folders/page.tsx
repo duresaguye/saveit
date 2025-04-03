@@ -118,7 +118,7 @@ export default function Home() {
   const handleSaveFolder = async (folderData: { name: string }) => {
     try {
       setIsProcessing(true)
-      const url = editingFolder ? `/api/folders/${editingFolder.id}` : '/api/folders'
+      const url = editingFolder ? `/api/folders/[id]${editingFolder.id}` : '/api/folders'
       const method = editingFolder ? 'PUT' : 'POST'
 
       const response = await fetch(url, {
@@ -151,7 +151,7 @@ export default function Home() {
   const handleDeleteFolder = async (folderId: number) => {
     try {
       setIsProcessing(true)
-      const response = await fetch(`/api/folders/${folderId}`, {
+      const response = await fetch(`/api/folders/[id]${folderId}`, {
         method: 'DELETE'
       })
 
