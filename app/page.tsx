@@ -1,3 +1,4 @@
+"use client"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
@@ -5,8 +6,31 @@ import { Bookmark, Share2, Users, FolderTree, ArrowRight, Search, Plus, Folder, 
 import { useMobile } from "@/hooks/use-mobile"
 import ThemeToggle from "@/components/theme-toggle"
 import { Navbar } from "@/components/Navbar"
+import { authClient } from "@/utils/auth-client"
+import { useRouter } from "next/navigation"
+import { useEffect as reactUseEffect } from "react";
+
+
+
+
 
 export default function LandingPage() {
+  const router = useRouter()
+  
+  const { 
+    data: session, 
+    isPending: sessionLoading,
+    error: sessionError,
+    refetch: refetchSession
+  } = authClient.useSession()
+
+  
+  useEffect(() => {
+    if (!sessionLoading && session) {
+      router.push("/folders")
+    }
+  }, [session, sessionLoading, router])
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -39,6 +63,7 @@ export default function LandingPage() {
                   <Image
                     src="/saveIT.png"
                     alt="SaveIT Dashboard Preview"
+                  
                     fill
                     className="object-contain"
                     priority
@@ -127,5 +152,8 @@ export default function LandingPage() {
       </footer>
     </div>
   )
+}
+function useEffect(callback: () => void, dependencies: any[]) {
+  reactUseEffect(callback, dependencies);
 }
 
