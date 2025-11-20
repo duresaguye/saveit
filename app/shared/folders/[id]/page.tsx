@@ -21,7 +21,7 @@ interface LinkType {
   url: string
   description?: string
   category: string
-  tags?: string[] 
+  tags?: string[]
   createdAt: string
 }
 
@@ -38,20 +38,20 @@ export default function SharedFoldersPage() {
       try {
         setLoading(true)
         const folderIds = searchParams.get("ids")?.split(",").map(Number) || []
-        
+
         if (!folderIds.length) {
           throw new Error("No folders specified in the URL")
         }
 
         const response = await fetch(`/api/shared/folders?ids=${folderIds.join(",")}`)
-        
+
         if (!response.ok) {
           const errorData = await response.json()
           throw new Error(errorData.error || "Failed to fetch folders")
         }
 
         const data: FolderType[] = await response.json()
-        
+
         if (!data.length) {
           throw new Error("No folders found with the specified IDs")
         }
@@ -75,9 +75,9 @@ export default function SharedFoldersPage() {
       const response = await fetch("/api/folders/save-shared", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           folderIds: folders.map(f => f.id),
-          collectionName 
+          collectionName
         })
       })
 
@@ -204,14 +204,14 @@ export default function SharedFoldersPage() {
                         )}
 
                         <CardFooter className="flex flex-col items-start gap-4">
-                        <div className="flex flex-wrap gap-1">
-  <Badge variant="outline">{link.category}</Badge>
-  {(link.tags || []).map((tag) => (
-    <Badge key={tag} variant="secondary">
-      {tag}
-    </Badge>
-  ))}
-</div>
+                          <div className="flex flex-wrap gap-1">
+                            <Badge variant="outline">{link.category}</Badge>
+                            {(link.tags || []).map((tag) => (
+                              <Badge key={tag} variant="secondary">
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
 
                           <div className="flex items-center text-sm text-muted-foreground">
                             <Clock className="h-4 w-4 mr-1" />
@@ -219,8 +219,8 @@ export default function SharedFoldersPage() {
                           </div>
 
                           <div className="w-full flex justify-end pt-2 border-t">
-                            <Button 
-                              variant="outline" 
+                            <Button
+                              variant="outline"
                               onClick={() => window.open(link.url, "_blank")}
                             >
                               <ExternalLink className="h-4 w-4 mr-2" />
@@ -277,8 +277,8 @@ export default function SharedFoldersPage() {
                     </div>
 
                     <div className="w-full flex justify-end pt-2 border-t">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={() => window.open(link.url, "_blank")}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
@@ -290,8 +290,8 @@ export default function SharedFoldersPage() {
               ))}
             </div>
           </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+        </Tabs >
+      </div >
+    </div >
   )
 }
