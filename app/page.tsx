@@ -105,12 +105,7 @@ export default function LandingPage() {
       description: "Access your resources from any device, anywhere",
       color: "from-teal-500 to-emerald-500"
     },
-    {
-      icon: Lock as unknown as LucideIcon,
-      title: "Bank-Grade Security",
-      description: "Your data is encrypted and secure with enterprise-grade protection",
-      color: "from-green-500 to-emerald-500"
-    },
+    
     {
       icon: Infinity as unknown as LucideIcon,
       title: "Unlimited Resources",

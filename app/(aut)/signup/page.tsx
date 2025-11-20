@@ -91,10 +91,12 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex justify-center items-center min-h-screen p-4 bg-gradient-to-br from-slate-50 via-teal-50 to-emerald-50 dark:from-slate-950 dark:via-teal-950/80 dark:to-emerald-950/80">
+      <Card className="w-full max-w-md border-0 shadow-lg bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-center">Create Account</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
+            Create an account
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -163,8 +165,11 @@ export default function SignupPage() {
                 )}
               />
 
-              <Button type="submit" className="w-full">
-                Create Account
+              <Button 
+                type="submit" 
+                className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white"
+              >
+                Sign up
               </Button>
             </form>
           </Form>
@@ -173,10 +178,11 @@ export default function SignupPage() {
             <div className="absolute inset-0 flex items-center">
               <span className="w-full border-t" />
             </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">
-                Or continue with
-              </span>
+            <div className="mt-4 text-center text-sm">
+              Already have an account?{" "}
+              <a href="/login" className="text-teal-600 dark:text-teal-400 underline-offset-4 hover:underline">
+                Log in
+              </a>
             </div>
           </div>
 

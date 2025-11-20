@@ -83,10 +83,12 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex justify-center items-center min-h-screen p-4">
-      <Card className="w-full max-w-md">
+    <div className="flex justify-center items-center min-h-screen p-4 bg-gradient-to-br from-slate-50 via-teal-50 to-emerald-50 dark:from-slate-950 dark:via-teal-950/80 dark:to-emerald-950/80">
+      <Card className="w-full max-w-md border-0 shadow-lg bg-white/90 dark:bg-slate-900/90 backdrop-blur-sm">
         <CardHeader>
-          <CardTitle className="text-center">Welcome Back</CardTitle>
+          <CardTitle className="text-center text-2xl font-bold bg-gradient-to-r from-teal-600 to-emerald-600 bg-clip-text text-transparent">
+            Welcome Back
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -123,7 +125,10 @@ export default function LoginPage() {
                 )}
               />
 
-              <Button type="submit" className="w-full">
+              <Button
+                type="submit"
+                className="w-full bg-gradient-to-r from-teal-600 to-emerald-600 hover:from-teal-700 hover:to-emerald-700 text-white"
+              >
                 Login
               </Button>
             </form>
@@ -150,7 +155,7 @@ export default function LoginPage() {
           <div className="flex gap-4">
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full border-teal-200 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30"
               onClick={() => handleOAuthLogin("google")}
             >
               <FaGoogle className="mr-2 h-4 w-4" />
@@ -158,7 +163,7 @@ export default function LoginPage() {
             </Button>
             <Button
               variant="outline"
-              className="w-full"
+              className="w-full border-teal-200 dark:border-teal-700 text-teal-700 dark:text-teal-300 hover:bg-teal-50 dark:hover:bg-teal-900/30"
               onClick={() => handleOAuthLogin("github")}
             >
               <FaGithub className="mr-2 h-4 w-4" />
