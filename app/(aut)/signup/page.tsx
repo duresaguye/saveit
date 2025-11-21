@@ -175,7 +175,7 @@ export default function SignupPage() {
           </Form>
 
           <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
+            <div className="absolute inset-0 flex items-center mb-8">
               <span className="w-full border-t" />
             </div>
             <div className="mt-4 text-center text-sm">
